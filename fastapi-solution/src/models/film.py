@@ -9,6 +9,21 @@ from pydantic.error_wrappers import ValidationError
 
 
 class Film(IdMixin, BaseModel):
+    """
+    Film model class.
+
+    Attributes:
+        title (str): Title of the film.
+        description (Optional[str]): Description of the film, if available.
+        creation_date (Optional[date]): Date when the film was created, if available.
+        imdb_rating (float, optional): Rating of the film on IMDB. Defaults to 0.
+        genre (List[Genre]): A list of genres of the film.
+        director (Person): Director of the film.
+        actors (Optional[List[Person]]): A list of actors, if available.
+        writers (Optional[List[Person]]): A list of writers, if available.
+        actors_names (Optional[List[str]]): A list of names of the actors, if available.
+        writers_names (Optional[List[str]]): A list of names of the writers, if available.
+    """
 
     title: str
     description: Optional[str]
