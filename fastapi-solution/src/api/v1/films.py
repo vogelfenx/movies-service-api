@@ -8,9 +8,11 @@ from services.film import FilmService, get_film_service
 router = APIRouter()
 
 
-class Film(BaseModel):
-    id: str
-    title: str
+@router.get("/", response_model=list[Film])
+async def films_list() -> list[Film]:
+    films = [Film(id='testid', title='some title'),
+             Film(id='testid2', title='some title2')]
+    return films
 
 
 # Внедряем FilmService с помощью Depends(get_film_service)
