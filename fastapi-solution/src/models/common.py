@@ -1,5 +1,4 @@
 from datetime import datetime
-from uuid import UUID
 
 from orjson import dumps, loads
 from pydantic import BaseModel
@@ -28,10 +27,10 @@ class IdMixin(BaseModel):
     Mixin class to add an 'id' field to a model.
 
     Attributes:
-        id (UUID): A unique identifier for the model instance.
+        id (str): A unique identifier for the model instance.
     """
 
-    id: UUID
+    id: str
 
 
 class DateMixin(BaseModel):

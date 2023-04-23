@@ -1,6 +1,6 @@
 from typing import Optional
 
-from common import ConfigOrjsonMixin, IdMixin
+from models.common import ConfigOrjsonMixin, IdMixin
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
@@ -14,7 +14,7 @@ class Person(IdMixin, BaseModel):
         gender (Optional[str]): The gender of the person, if available.
     """
 
-    full_name: str
+    name: str
     gender: Optional[str]
 
     class Config(ConfigOrjsonMixin):

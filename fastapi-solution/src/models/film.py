@@ -1,9 +1,9 @@
 from datetime import date
 from typing import List, Optional
 
-from common import ConfigOrjsonMixin, DateMixin, IdMixin
-from genre import Genre
-from person import Person
+from models.common import ConfigOrjsonMixin, IdMixin
+from models.genre import Genre
+from models.person import Person
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
@@ -29,8 +29,8 @@ class Film(IdMixin, BaseModel):
     description: Optional[str]
     creation_date: Optional[date]
     imdb_rating: float = 0
-    genre: List[Genre]
-    director: Person
+    genre: List[str]
+    director: List[str]
     actors: Optional[List[Person]]
     writers: Optional[List[Person]]
     actors_names: Optional[List[str]]

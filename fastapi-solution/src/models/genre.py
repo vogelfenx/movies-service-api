@@ -1,6 +1,6 @@
 from typing import Optional
 
-from common import ConfigOrjsonMixin, IdMixin
+from models.common import ConfigOrjsonMixin, IdMixin
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
