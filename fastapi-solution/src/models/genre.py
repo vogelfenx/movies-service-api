@@ -1,11 +1,11 @@
 from typing import Optional
 
-from common import ConfigOrjsonMixin, DateMixin, IdMixin
+from common import ConfigOrjsonMixin, IdMixin
 from pydantic import BaseModel
 from pydantic.error_wrappers import ValidationError
 
 
-class Genre(DateMixin, IdMixin, BaseModel):
+class Genre(IdMixin, BaseModel):
     """
     Genre model class.
 
@@ -27,21 +27,15 @@ if __name__ == '__main__':
             'id': '63c1b466-e602-4775-bbc8-c91d781fcd6f',
             'name': 'some genre name',
             'description': 'some genre description',
-            'created': '2022-05-01 12:30',
-            'modified': '2022-10-01 13:30',
         },
         {
             'id': '63c1b466-e602-4775-bbc8-c91d781fcd6f',
             'name': 'some genre name',
-            'created': '2022-05-01 12:30',
-            'modified': '2022-10-01 13:30',
         },
         {
             'id': '63c1b466-e602-4775-bbc8-c91d781fcd6',
             'name': 'invalid uuid',
             'description': 'some genre description',
-            'created': '2022-05-01 12:30',
-            'modified': '2022-10-01 13:30',
         },
     ]
 
