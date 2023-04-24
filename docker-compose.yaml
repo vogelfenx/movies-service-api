@@ -1,8 +1,11 @@
 version: '3'
 services:
+
+
   api:
+    container_name: fast_api_service
     build:
-      dockerfile: Docker_settings\fastapi\Dockerfiles\Dockerfile
+      dockerfile: Docker_settings/fastapi/Dockerfiles/Dockerfile
       context: fastapi-solution
     ports:
       - "8000:8000"
@@ -16,20 +19,23 @@ services:
         max_attempts: 5
         window: 10s
 
+    depends_on:
+      - redis
+
+
   redis:
+    container_name: redis_cache
     build:
-      dockerfile: Docker_settings\redis_cache\Dockerfiles\Dockerfile
+      dockerfile: Docker_settings/redis_cache/Dockerfiles/Dockerfile
       context: fastapi-solution
 
     env_file:
       fastapi-solution/.env
     ports:
       - "6379:6379"
-    depends_on:
-      - api
+
 
 networks:
   default:
     external:
       name: app_movies_network
-  
