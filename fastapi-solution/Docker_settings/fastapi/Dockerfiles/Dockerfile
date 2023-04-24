@@ -11,8 +11,6 @@ COPY requirements.txt requirements.txt
 RUN  pip install --upgrade pip \
      && pip install -r requirements.txt --no-cache-dir
 
-COPY . .
-
-EXPOSE 8008
+COPY src src
 
 ENTRYPOINT ["python", "src/main.py"]
