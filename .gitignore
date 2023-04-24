@@ -145,3 +145,7 @@ mypy.ini
 
 # ipynb
 .notebooks/
+
+# Pipenv
+Pipfile.lock
+Pipfile
