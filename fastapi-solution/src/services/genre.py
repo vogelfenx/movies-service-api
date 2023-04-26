@@ -85,8 +85,8 @@ class GenreService:
         return Genre(**doc["_source"])
 
     async def _genre_from_cache(self, genre_id: str) -> Optional[Genre]:
-        # Пытаемся получить данные о жанре из кеша, используя команду get
-        # https://redis.io/commands/get/
+        # Пытаемся получить данные о жанре из кеша, используя команду hget
+        # https://redis.io/commands/hget/
         data = await self.redis.hget("genre", genre_id)
         if not data:
             return None
