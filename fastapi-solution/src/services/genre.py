@@ -24,7 +24,7 @@ class GenreService:
         genres = await self._genres_from_cache()
         if not genres:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
-            es = await self._get_genres_from_elastic()
+            genres = await self._get_genres_from_elastic()
             if not genres:
                 # Если список отсутствует в Elasticsearch, значит ошибка
                 return None
@@ -51,7 +51,7 @@ class GenreService:
         return genres
 
     async def _put_genres_to_cache(self, genres: List[Genre]):
-        # Сохраняем данные о жанре, используя команду set
+        # Сохраняем данные о жанрах, используя команду set
         # Выставляем время жизни кеша — 10 минут
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
@@ -60,6 +60,51 @@ class GenreService:
             value=orjson.dumps(genres, default=dict),
             ex=GENRE_CACHE_EXPIRE_IN_SECONDS,
         )
+
+    # возвращает жанр по id. Он опционален, так как жанр может отсутствовать в базе
+    async def get_by_id(self, genre_id: str) -> Optional[Genre]:
+        # Пытаемся получить данные из кеша, потому что оно работает быстрее
+        genre = await self._genre_from_cache(genre_id)
+        if not genre:
+            # Если жанра нет в кеше, то ищем его в Elasticsearch
+            genre = await self._get_genre_from_elastic(genre_id)
+            if not genre:
+                # Если список отсутствует в Elasticsearch, значит ошибка
+                return None
+            # Сохраняем жанры в кеш
+            await self._put_genre_to_cache(genre)
+
+        return genre
+
+    async def _get_genre_from_elastic(self, genre_id: str) -> Optional[Genre]:
+        try:
+            doc = await self.elastic.get(index="genres", id=genre_id)
+        except NotFoundError:
+            return None
+
+        return Genre(**doc["_source"])
+
+    async def _genre_from_cache(self, genre_id: str) -> Optional[Genre]:
+        # Пытаемся получить данные о жанре из кеша, используя команду get
+        # https://redis.io/commands/get/
+        data = await self.redis.hget("genre", genre_id)
+        if not data:
+            return None
+
+        # pydantic предоставляет удобное API для создания объекта моделей из json
+        genre_json = orjson.loads(data.decode("utf-8"))
+        genre = Genre.parse_obj(genre_json)
+        return genre
+
+    async def _put_genre_to_cache(self, genre: Genre):
+        # Сохраняем данные о жанрах, используя команду set
+        # Выставляем время жизни кеша — 10 минут
+        # https://redis.io/commands/set/
+        # pydantic позволяет сериализовать модель в json
+        # redis.hset("genre", "1", g2.json())
+
+        await self.redis.hset("genre", genre.id, genre.json())
+        await self.redis.expire("genre", GENRE_CACHE_EXPIRE_IN_SECONDS)
 
 
 @lru_cache()
