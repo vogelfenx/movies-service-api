@@ -1,0 +1,187 @@
+{
+	"info": {
+		"_postman_id": "c1343624-8b3d-4675-8448-f5afaebc8ed3",
+		"name": "Async_API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "18819780"
+	},
+	"item": [
+		{
+			"name": "Проверка количества жанров",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Compare number of records\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    // pm.expect(len(jsonData)).to.equal(999);",
+							"    pm.expect(jsonData.length).to.equal(26);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{base_url}}/api/v1/genres"
+			},
+			"response": []
+		},
+		{
+			"name": "Запрос данных по жанру",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Check name of genre\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData['name']).to.equal('Action');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{base_url}}/api/v1/genres/3d8d9bf5-0d90-4353-88ba-4ccc5d2c07ff"
+			},
+			"response": []
+		},
+		{
+			"name": "Запрос данных по персоне",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Check name of person\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData['full_name']).to.equal('Mark Hamill');",
+							"});",
+							"",
+							"pm.test(\"Compare number of person's films\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData['films'].length).to.equal(14);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"query\": {\n        \"nested\": {\n            \"path\": \"actors\",\n            \"query\": {\n                \"bool\": {\n                    \"must\": [\n                        {\n                            \"match\": {\n                                \"actors.name\": \"Greg Camp\"\n                            }\n                        }\n                    ]\n                }\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{base_url}}/api/v1/persons/26e83050-29ef-4163-a99d-b546cac208f8"
+			},
+			"response": []
+		},
+		{
+			"name": "Запрос фильмов по персоне",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Compare number of person's films\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.equal(14);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"query\": {\n        \"nested\": {\n            \"path\": \"actors\",\n            \"query\": {\n                \"bool\": {\n                    \"must\": [\n                        {\n                            \"match\": {\n                                \"actors.name\": \"Greg Camp\"\n                            }\n                        }\n                    ]\n                }\n            }\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{base_url}}/api/v1/persons/26e83050-29ef-4163-a99d-b546cac208f8/film"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}

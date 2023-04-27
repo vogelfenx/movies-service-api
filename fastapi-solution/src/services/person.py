@@ -64,7 +64,7 @@ class PersonService:
         # Выставляем время жизни кеша — 5 минут
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
-        await self.redis.hset("person", person.id, person.json())
+        await self.redis.hset("person", str(person.id), person.json())
         await self.redis.expire("person", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
     # возвращает список всех жанров. Он опционален, так как жанр может отсутствовать в базе

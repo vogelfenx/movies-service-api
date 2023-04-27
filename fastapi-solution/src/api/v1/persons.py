@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Any, List
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -7,20 +7,23 @@ from uuid import UUID
 
 from services.person import PersonService, get_person_service
 from models.film import Film as _Film
+from models.common import UUIDMixin
 
 router = APIRouter()
 
 
-class FilmRoles(BaseModel):
-    id: str = Field(alias="uuid")
+class FilmRoles(UUIDMixin, BaseModel):
+    """Response nested model contains film uuid and roles"""
+
     roles: List[str] = Field(default_factory=list)
 
     class Config:
         allow_population_by_field_name = True
 
 
-class Person(BaseModel):
-    id: str = Field(alias="uuid")
+class Person(UUIDMixin, BaseModel):
+    """Response person model with only specific fields"""
+
     name: str = Field(alias="full_name")
     films: List[FilmRoles] = Field(default_factory=list)
 
@@ -29,6 +32,7 @@ class Person(BaseModel):
 
     @classmethod
     def get_films_roles(cls, person_name: str, films: List[_Film]) -> List[FilmRoles]:
+        """Extracts roles from films"""
         films_roles = []
         for film in films:
             roles = []
@@ -51,6 +55,8 @@ class Person(BaseModel):
 
 
 class Film(BaseModel):
+    """Response film model with only specific fields"""
+
     id: UUID = Field(alias="uuid")
     title: str
     imdb_rating: float
@@ -64,43 +70,33 @@ class Film(BaseModel):
 async def person_films(
     person_id: str,
     person_service: PersonService = Depends(get_person_service),
-) -> Any:  # List[Person]:
+) -> List[Film]:
+    """Return a person's films (only films list)"""
+
     person = await person_service.get_by_id(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Person not found")
 
     films = await person_service.get_person_films(person_id, person.name)
     if not films:
-        # Если жанры не найдены, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Films not found")
 
-    # Перекладываем данные из models.Genre в Genre
-    # Обратите внимание, что у модели бизнес-логики есть поле description
-    # Которое отсутствует в модели ответа API.
-    # Если бы использовалась общая модель для бизнес-логики и формирования ответов API
-    # вы бы предоставляли клиентам данные, которые им не нужны
-    # и, возможно, данные, которые опасно возвращать
     films_resp = [Film.parse_obj(x) for x in films]
     return films_resp
 
 
-# Внедряем GenreService с помощью Depends(get_genre_service)
 @router.get("/{person_id}", response_model=Person)
 async def person(
     person_id: str,
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:
+    """Return a person's films (only uuid) and roles (as a list)"""
     person = await person_service.get_by_id(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Person not found")
 
     films = await person_service.get_person_films(person_id, person.name)
     if not films:
-        # Если фильмы не найдены, отдаём 404 статус
-        # Желательно пользоваться уже определёнными HTTP-статусами, которые содержат enum
-        # Такой код будет более поддерживаемым
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Films not found")
 
     person_resp = Person(

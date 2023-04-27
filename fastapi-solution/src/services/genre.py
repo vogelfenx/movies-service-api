@@ -1,14 +1,15 @@
+import asyncio
 from functools import lru_cache
 from typing import List, Optional
 
-from elasticsearch import AsyncElasticsearch, NotFoundError
-from fastapi import Depends
 import orjson
-from redis.asyncio import Redis
-
 from db.elastic import get_elastic
 from db.redis import get_redis
+from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch.helpers import async_scan
+from fastapi import Depends
 from models.genre import Genre
+from redis.asyncio import Redis
 
 GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
 
@@ -34,8 +35,15 @@ class GenreService:
         return genres
 
     async def _get_genres_from_elastic(self) -> Optional[List[Genre]]:
-        docs = await self.elastic.search(index="genres")
-        genres = [Genre.parse_obj(x["_source"]) for x in docs.body["hits"]["hits"]]
+        # docs = await self.elastic.search(index="genres")
+        # genres = [Genre.parse_obj(x["_source"]) for x in docs.body["hits"]["hits"]]
+        # return genres
+        docs = []
+
+        async for doc in async_scan(client=self.elastic, index="genres"):
+            docs.append(doc)
+
+        genres = [Genre.parse_obj(x["_source"]) for x in docs]
         return genres
 
     async def _genres_from_cache(self) -> Optional[List[Genre]]:
@@ -103,7 +111,7 @@ class GenreService:
         # pydantic позволяет сериализовать модель в json
         # redis.hset("genre", "1", g2.json())
 
-        await self.redis.hset("genre", genre.id, genre.json())
+        await self.redis.hset("genre", str(genre.id), genre.json())
         await self.redis.expire("genre", GENRE_CACHE_EXPIRE_IN_SECONDS)
 
 
