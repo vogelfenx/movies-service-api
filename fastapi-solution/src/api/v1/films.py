@@ -1,7 +1,7 @@
 from http import HTTPStatus
-from typing import Optional
+from typing import Annotated, Dict, List, Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from core import config
 from models import Film
@@ -10,34 +10,71 @@ from services.film import FilmService, get_film_service
 router = APIRouter()
 
 
-@router.get("/", response_model=dict, response_model_exclude_unset=True)
+@router.get("/", response_model=Dict[str, Union[int, List[Film], None]], response_model_exclude_unset=True)
 async def films_list(
     page_size: Optional[int] = config.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Optional[int] = 1,
+    sort: Optional[str] = None,
+    genre: Annotated[list[str] | None, Query()] = None,
     film_service: FilmService = Depends(get_film_service),
-) -> list[Film]:
+) -> Dict[str, Union[int, List[Film], None]]:
     """
-    Retrieve list of films.
+    Retrieve a paginated list of films.
 
-    The query parameters page_size and page_number can be used to paginate the result.
+    The list of retrieved films can optionally be filtered by genre and sorted by a specified order field.
 
-    Args:
-        page_size (Optional[int]): The size of the films retrieved per page. Defaults to DEFAULT_ELASTIC_QUERY_SIZE.
-        page_number (Optional[int]): The page number to retrieve. Default is 1.
-        film_service (FilmService): Film service to retrieve films from the database.
+    Args:  
+        page_size (Optional[int]): The size of the films retrieved per page.
+            Defaults to `DEFAULT_ELASTIC_QUERY_SIZE`.  
+        page_number (Optional[int]): The page number to retrieve. Default is 1.  
+        sort (Optional[str]): The sort field and the sort direction.  
+        genre (Annotated[list[str] | None, Query()]): The genre(s) of films to retrieve.  
+        film_service (FilmService): Film service to retrieve films from the database.  
 
-    Raises:
-        HTTPException: If requested page not found (HTTPStatus.NOT_FOUND).
-        HTTPException: If films cannot be found (HTTPStatus.NOT_FOUND).
+    Returns:  
+         A dictionary containing the paginated list of `Film` objects,
+         along with the total number of films and pagination details. 
+         For example:
 
-    Returns:
-        list[Film]: List of films.
+        {
+            'films_count': 10,
+            'total_pages': 5,
+            'next_page': 3,
+            'prev_page': 1,
+            'films': [{
+                    'id': "50fb4de9-e4b3-4aca-9f2f-00a48f12f9b3",
+                    'title': "Star Trek: First Contact",
+                    'imdb_rating':7.6}]
+        }
+
+    Raises:  
+        HTTPException: If requested page not found or list of films is empty
+         or given sort parameter not found.
     """
     if not page_number > 0:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
                             detail="page not found")
 
-    films_count, films = await film_service.get_films_list(page_size, page_number)
+    if genre:
+        genre = {'genre': genre}
+
+    if sort:
+        order = 'asc' if sort[0] == '+' else 'desc' if sort[0] == '-' else None
+        sort = {
+            sort[1:]: {'order': order},
+        }
+
+    try:
+        films_count, films = await film_service.get_films_list(
+            page_size=page_size,
+            page_number=page_number,
+            sort_field=sort,
+            filter_field=genre
+        )
+    except HTTPException as error:
+        raise HTTPException(status_code=error.status_code,
+                            detail=error.detail)
+
     films = (
         Film(
             id=film.id,
