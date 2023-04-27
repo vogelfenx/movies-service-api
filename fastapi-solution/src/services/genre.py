@@ -11,6 +11,7 @@ from fastapi import Depends
 from models.genre import Genre
 from redis.asyncio import Redis
 
+
 GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
 
 
