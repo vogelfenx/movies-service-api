@@ -28,9 +28,10 @@ class FilmService:
         self,
         page_size: Optional[int],
         page_number: Optional[int],
-        sort_field: Optional[str],
-        filter_field: Optional[Tuple[str, str]],
-    ) -> Tuple[int, List[Film]]:
+        sort_field: Optional[Dict[str, dict]],
+        filter_field: Optional[Dict[str, str]],
+        search_query: Optional[str],
+    ) -> Tuple[int, Iterator[Film]]:
         """
         Fetches films from Redis cache or Elasticsearch index.
 
@@ -60,6 +61,9 @@ class FilmService:
         logger.info("Search person in cache by key <{0}>".format(key))  # type: ignore
 
         films_count, films = await self._films_list_from_cache(key)
+        search_fields = ['title', 'description', 'director',
+                         'actors_names', 'writers_names', 'genre']
+
 
         if page_number:
             from_index = page_size * (page_number - 1)
@@ -107,9 +111,11 @@ class FilmService:
         self,
         query_size: Optional[int],
         from_index: Optional[int],
-        sort_field: Optional[Dict[str, str]] = None,
-        filter_field: Optional[Tuple[str, str]] = None,
-    ) -> Tuple[int, List[Film]]:
+        sort_field: Optional[Dict[str, dict]] = None,
+        filter_field: Optional[Dict[str, str]] = None,
+        search_query: Optional[str] = None,
+        search_fields: Optional[list] = None,
+    ) -> Tuple[int, Iterator[Film]]:
         """Fetch films from elasticsearch.
 
         If the requested query size is larger than the maximum query size (MAX_ELASTIC_QUERY_SIZE),
