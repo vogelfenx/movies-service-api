@@ -10,12 +10,13 @@ from services.film import FilmService, get_film_service
 router = APIRouter()
 
 
-@router.get("/", response_model=Dict[str, Union[int, List[Film], None]], response_model_exclude_unset=True)
+@router.get("/", response_model=dict, response_model_exclude_unset=True)
 async def films_list(
     page_size: Optional[int] = config.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Optional[int] = 1,
     sort: Optional[str] = None,
     genre: Annotated[list[str] | None, Query()] = None,
+    search: Optional[str] = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> Dict[str, Union[int, List[Film], None]]:
     """
@@ -29,6 +30,7 @@ async def films_list(
         page_number (Optional[int]): The page number to retrieve. Default is 1.  
         sort (Optional[str]): The sort field and the sort direction.  
         genre (Annotated[list[str] | None, Query()]): The genre(s) of films to retrieve.  
+        search: Optional[str]: The phrase to search.
         film_service (FilmService): Film service to retrieve films from the database.  
 
     Returns:  
@@ -69,7 +71,8 @@ async def films_list(
             page_size=page_size,
             page_number=page_number,
             sort_field=sort,
-            filter_field=genre
+            filter_field=genre,
+            search_query=search,
         )
     except HTTPException as error:
         raise HTTPException(status_code=error.status_code,

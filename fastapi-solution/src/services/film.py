@@ -23,8 +23,9 @@ class FilmService:
         self,
         page_size: Optional[int],
         page_number: Optional[int],
-        sort_field: Optional[str],
-        filter_field: Optional[Tuple[str, str]],
+        sort_field: Optional[Dict[str, dict]],
+        filter_field: Optional[Dict[str, str]],
+        search_query: Optional[str],
     ) -> Tuple[int, Iterator[Film]]:
         """
         Fetches films from Redis cache or Elasticsearch index.
@@ -34,6 +35,7 @@ class FilmService:
             page_number (Optional[int]): The page number to retrieve.
             sort_field (Optional[str]): The field to sort the results by.
             filter_field (Optional[Tuple[str, str]]): The field to filter the results by.
+            search_query: Optional[str]: The phrase to search. 
 
         Returns:
             Tuple[int, Iterator[Film]]: A tuple containing the total number of films
@@ -42,6 +44,9 @@ class FilmService:
         Raises:
             HTTPException: If an error occurs while fetching films from Elasticsearch.
         """
+        search_fields = ['title', 'description', 'director',
+                         'actors_names', 'writers_names', 'genre']
+
         films_count, films = await self._films_list_from_cache()  # TODO redis
 
         if page_number:
@@ -54,6 +59,8 @@ class FilmService:
                     from_index=from_index,
                     sort_field=sort_field,
                     filter_field=filter_field,
+                    search_query=search_query,
+                    search_fields=search_fields,
                 )
             except BadRequestError as error:
                 raise HTTPException(status_code=error.status_code)
@@ -86,8 +93,10 @@ class FilmService:
         self,
         query_size: Optional[int],
         from_index: Optional[int],
-        sort_field: Optional[Dict[str, str]] = None,
-        filter_field: Optional[Tuple[str, str]] = None,
+        sort_field: Optional[Dict[str, dict]] = None,
+        filter_field: Optional[Dict[str, str]] = None,
+        search_query: Optional[str] = None,
+        search_fields: Optional[list] = None,
     ) -> Tuple[int, Iterator[Film]]:
         """Fetch films from elasticsearch.
 
@@ -98,6 +107,10 @@ class FilmService:
         Args:
             query_size (Optional [int]): The size of the query to retrieve.
             from_index (Optional[int]): The document number to return from.
+            sort_field (Optional[Dict[str, dict]]): The field to sort the results by.
+            filter_field (Optional[Dict[str, str]]): The field to filter the results by.
+            search_query (Optional[str]): The phrase to search.
+            search_fields (Optional[list]): The fields to search in.
 
         Returns:
             Tuple[int, Iterator[Film]]: Total number of documents in the index
@@ -110,7 +123,7 @@ class FilmService:
             paginate_query_request = True
             query_size = max_query_size
 
-        search_query = {
+        query = {
             'query': {
                 'bool': {
                     'must': {
@@ -123,18 +136,28 @@ class FilmService:
         }
 
         if filter_field:
-            search_query['query']['bool']['filter'] = {
+            query['query']['bool']['filter'] = {
                 'terms': filter_field,
             }
 
         if sort_field:
-            search_query['sort'] = [sort_field]
+            query['sort'] = [sort_field]
+
+        if search_query and search_fields:
+            query['query']['bool']['must'] = {
+                'multi_match': {
+                    'query': search_query,
+                    'fields': search_fields,
+                    'fuzziness': 'AUTO',
+                    'operator': 'and',
+                },
+            }
 
         scroll = None
         if paginate_query_request:
             scroll = '5m'
 
-        response = await self.elastic.search(index='movies', body=search_query, scroll=scroll)
+        response = await self.elastic.search(index='movies', body=query, scroll=scroll)
 
         films_count = response['hits']['total']['value']
         hits = response['hits']['hits']
@@ -187,7 +210,8 @@ class FilmService:
         # Выставляем время жизни кеша — 5 минут
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
-        await self.redis.set(film.id, film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.hset('film', str(film.id), film.json())
+        await self.redis.expire('film', FILM_CACHE_EXPIRE_IN_SECONDS)
 
 
 @lru_cache()
