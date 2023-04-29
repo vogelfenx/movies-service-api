@@ -37,6 +37,7 @@ class FilmService:
             page_number (Optional[int]): The page number to retrieve.
             sort_field (Optional[str]): The field to sort the results by.
             filter_field (Optional[Tuple[str, str]]): The field to filter the results by.
+            search_query: Optional[str]: The phrase to search. 
 
         Returns:
             Tuple[int, Iterator[Film]]: A tuple containing the total number of films
@@ -45,7 +46,6 @@ class FilmService:
         Raises:
             HTTPException: If an error occurs while fetching films from Elasticsearch.
         """
-
         # кеш может разниться для различных параметров поиска
         # поэтому сохраняем аргументы в строке, которую будем использовать
         # как ключ
@@ -63,6 +63,8 @@ class FilmService:
                     from_index=from_index,
                     sort_field=sort_field,
                     filter_field=filter_field,
+                    search_query=search_query,
+                    search_fields=search_fields,
                 )
 
             except BadRequestError as error:
@@ -109,6 +111,10 @@ class FilmService:
         Args:
             query_size (Optional [int]): The size of the query to retrieve.
             from_index (Optional[int]): The document number to return from.
+            sort_field (Optional[Dict[str, dict]]): The field to sort the results by.
+            filter_field (Optional[Dict[str, str]]): The field to filter the results by.
+            search_query (Optional[str]): The phrase to search.
+            search_fields (Optional[list]): The fields to search in.
 
         Returns:
             Tuple[int, List[Film]]: Total number of documents in the index
@@ -121,7 +127,7 @@ class FilmService:
             paginate_query_request = True
             query_size = max_query_size
 
-        search_query = {
+        query = {
             'query': {
                 'bool': {
                     'must': {
@@ -134,18 +140,28 @@ class FilmService:
         }
 
         if filter_field:
-            search_query['query']['bool']['filter'] = {
+            query['query']['bool']['filter'] = {
                 'terms': filter_field,
             }
 
         if sort_field:
-            search_query['sort'] = [sort_field]
+            query['sort'] = [sort_field]
+
+        if search_query and search_fields:
+            query['query']['bool']['must'] = {
+                'multi_match': {
+                    'query': search_query,
+                    'fields': search_fields,
+                    'fuzziness': 'AUTO',
+                    'operator': 'and',
+                },
+            }
 
         scroll = None
         if paginate_query_request:
             scroll = '5m'
 
-        response = await self.elastic.search(index='movies', body=search_query, scroll=scroll)
+        response = await self.elastic.search(index='movies', body=query, scroll=scroll)
 
         films_count = response['hits']['total']['value']
         hits = response['hits']['hits']
