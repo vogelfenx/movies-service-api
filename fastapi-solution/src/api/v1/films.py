@@ -24,18 +24,18 @@ async def films_list(
 
     The list of retrieved films can optionally be filtered by genre and sorted by a specified order field.
 
-    Args:  
+    Args:
         page_size (Optional[int]): The size of the films retrieved per page.
-            Defaults to `DEFAULT_ELASTIC_QUERY_SIZE`.  
-        page_number (Optional[int]): The page number to retrieve. Default is 1.  
-        sort (Optional[str]): The sort field and the sort direction.  
-        genre (Annotated[list[str] | None, Query()]): The genre(s) of films to retrieve.  
+            Defaults to `DEFAULT_ELASTIC_QUERY_SIZE`.
+        page_number (Optional[int]): The page number to retrieve. Default is 1.
+        sort (Optional[str]): The sort field and the sort direction.
+        genre (Annotated[list[str] | None, Query()]): The genre(s) of films to retrieve.
         search: Optional[str]: The phrase to search.
-        film_service (FilmService): Film service to retrieve films from the database.  
+        film_service (FilmService): Film service to retrieve films from the database.
 
-    Returns:  
+    Returns:
          A dictionary containing the paginated list of `Film` objects,
-         along with the total number of films and pagination details. 
+         along with the total number of films and pagination details.
          For example:
 
         {
@@ -49,21 +49,20 @@ async def films_list(
                     'imdb_rating':7.6}]
         }
 
-    Raises:  
+    Raises:
         HTTPException: If requested page not found or list of films is empty
          or given sort parameter not found.
     """
     if not page_number > 0:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="page not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="page not found")
 
     if genre:
-        genre = {'genre': genre}
+        genre = {"genre": genre}
 
     if sort:
-        order = 'asc' if sort[0] == '+' else 'desc' if sort[0] == '-' else None
+        order = "asc" if sort[0] == "+" else "desc" if sort[0] == "-" else None
         sort = {
-            sort[1:]: {'order': order},
+            sort[1:]: {"order": order},
         }
 
     try:
@@ -75,19 +74,18 @@ async def films_list(
             search_query=search,
         )
     except HTTPException as error:
-        raise HTTPException(status_code=error.status_code,
-                            detail=error.detail)
+        raise HTTPException(status_code=error.status_code, detail=error.detail)
 
     films = (
         Film(
             id=film.id,
             title=film.title,
             imdb_rating=film.imdb_rating,
-        ) for film in films
+        )
+        for film in films
     )
     if not films:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="films not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="films not found")
 
     total_pages = films_count // page_size
     total_pages += 1 if films_count % page_size > 0 else 0
@@ -96,11 +94,11 @@ async def films_list(
     prev_page = page_number - 1 if page_number > 1 else None
 
     return {
-        'films_count': films_count,
-        'total_pages': total_pages,
-        'next_page': next_page,
-        'prev_page': prev_page,
-        'films': films,
+        "films_count": films_count,
+        "total_pages": total_pages,
+        "next_page": next_page,
+        "prev_page": prev_page,
+        "films": films,
     }
 
 
@@ -123,8 +121,7 @@ async def film_details(
     """
     film = await film_service.get_by_id(film_id)
     if not film:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail="film not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="film not found")
 
     return Film(
         id=film.id,

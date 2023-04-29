@@ -5,5 +5,5 @@ es: Optional[AsyncElasticsearch]
 
 
 # Функция понадобится при внедрении зависимостей
-async def get_elastic() -> AsyncElasticsearch:
+async def get_elastic() -> Optional[AsyncElasticsearch]:
     return es
