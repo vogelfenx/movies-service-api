@@ -1,6 +1,6 @@
 from functools import lru_cache
 from typing import List, Optional
-import asyncio
+from .common import prepare_key_by_args
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from elasticsearch.helpers import async_scan
@@ -45,21 +45,22 @@ class PersonService:
     ) -> Optional[List[Person]]:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         # TODO get redis
-        # person = await self._person_from_cache(person_id)
-        person = None
-        if not person:
+        key = prepare_key_by_args(
+            name=name, page_size=page_size, page_number=page_number
+        )
+        persons = await self._persons_by_key_from_cache(key)
+        if not persons:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
-            person = await self._get_persons_by_name_from_elastic(
+            persons = await self._get_persons_by_name_from_elastic(
                 name=name, page_size=page_size, page_number=page_number
             )
-            if not person:
+            if not persons:
                 # Если он отсутствует в Elasticsearch, то персоны вообще нет в базе
                 return None
             # Сохраняем персону в кеш
-            # TODO put redis
-            # await self._put_person_to_cache(person)
+            await self._put_person_by_key_to_cache(key=key, persons=persons)
 
-        return person
+        return persons
 
     async def _get_persons_by_name_from_elastic(
         self, name: str, page_size: int, page_number: int
@@ -73,28 +74,29 @@ class PersonService:
         persons = [Person.parse_obj(x["_source"]) for x in docs["hits"]["hits"]]
         return persons
 
-    async def _persons_by_name_from_cache(self, person_id: str) -> Optional[Person]:
-        # Пытаемся получить данные о персоне из кеша, используя команду get
+    async def _persons_by_key_from_cache(
+        self, key: str | bytes
+    ) -> Optional[List[Person]]:
+        # Пытаемся получить данные о персоне из кеша по ключу, используя команду hget
         # https://redis.io/commands/get/
-        data = await self.redis.hget("person", person_id)
+        data = await self.redis.hget("person", key)
         if not data:
             return None
 
         # pydantic предоставляет удобное API для создания объекта моделей из json
-        person_json = orjson.loads(data.decode("utf-8"))
-        person = Person.parse_obj(person_json)
+        persons_json = orjson.loads(data.decode("utf-8"))
+        persons = [Person.parse_obj(x) for x in persons_json]
+        return persons
 
-        return person
-
-    async def _put_person_by_name_to_cache(self, name: str, persons: List[Person]):
+    async def _put_person_by_key_to_cache(
+        self, key: str | bytes, persons: List[Person]
+    ):
         # Сохраняем данные о персоне, используя команду set
         # Выставляем время жизни кеша — 5 минут
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
 
-        # TODO name must be normalaized
-        await self.redis.hset("person_films", name, orjson.dumps(persons, default=dict))
-
+        await self.redis.hset("person_films", key, orjson.dumps(persons, default=dict))
         await self.redis.expire("person_films", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
     async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
