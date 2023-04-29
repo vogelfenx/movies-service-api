@@ -1,5 +1,6 @@
 from functools import lru_cache
-from typing import Dict, Iterator, Optional, Tuple
+from itertools import tee
+from typing import Dict, Iterator, Optional, Tuple, List
 
 import orjson
 
@@ -27,7 +28,7 @@ class FilmService:
         page_number: Optional[int],
         sort_field: Optional[str],
         filter_field: Optional[Tuple[str, str]],
-    ) -> Tuple[int, Iterator[Film]]:
+    ) -> Tuple[int, List[Film]]:
         """
         Fetches films from Redis cache or Elasticsearch index.
 
@@ -63,6 +64,7 @@ class FilmService:
                     sort_field=sort_field,
                     filter_field=filter_field,
                 )
+
             except BadRequestError as error:
                 raise HTTPException(status_code=error.status_code)
 
@@ -97,7 +99,7 @@ class FilmService:
         from_index: Optional[int],
         sort_field: Optional[Dict[str, str]] = None,
         filter_field: Optional[Tuple[str, str]] = None,
-    ) -> Tuple[int, Iterator[Film]]:
+    ) -> Tuple[int, List[Film]]:
         """Fetch films from elasticsearch.
 
         If the requested query size is larger than the maximum query size (MAX_ELASTIC_QUERY_SIZE),
@@ -109,7 +111,7 @@ class FilmService:
             from_index (Optional[int]): The document number to return from.
 
         Returns:
-            Tuple[int, Iterator[Film]]: Total number of documents in the index
+            Tuple[int, List[Film]]: Total number of documents in the index
                                         and list of fetched films.
         """
         max_query_size = config.MAX_ELASTIC_QUERY_SIZE
@@ -158,7 +160,7 @@ class FilmService:
                 scroll_id = response['_scroll_id']
                 hits = response['hits']['hits']
         else:
-            films = (Film(**hit['_source']) for hit in hits)
+            films = [Film(**hit['_source']) for hit in hits]
 
         return (films_count, films)
 
@@ -198,7 +200,7 @@ class FilmService:
 
         return films_count, films
 
-    async def _put_film_to_cache(self, film: Film):
+    async def _put_film_to_cache(self, film: Film) -> None:
         # Сохраняем данные о фильме в кеше
         await self.redis.set(str(film.id),
                              film.json(),
@@ -207,12 +209,14 @@ class FilmService:
     async def _put_films_to_cache(self,
                                   args_key: str,
                                   films_count: int,
-                                  films: Iterator[Film]):
+                                  films: Iterator[Film]) -> None:
         data = {'count': films_count,
                 'values': list(films)
                 }
         json_data = orjson.dumps(data, default=dict)
+
         await self.redis.hset('films', args_key, json_data)
+        await self.redis.expire('films', FILM_CACHE_EXPIRE_IN_SECONDS)
 
 
 @lru_cache()
