@@ -1,20 +1,22 @@
 from functools import lru_cache
 from typing import List, Optional
-from .common import prepare_key_by_args
 
+import orjson
+from core.logger import get_logger
+from db.elastic import get_elastic
+from db.redis import get_redis
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from elasticsearch.helpers import async_scan
 from fastapi import Depends
-import orjson
+from models.film import Film
+from models.person import Person
 from redis.asyncio import Redis
 
-from db.elastic import get_elastic
-from db.redis import get_redis
-from models.person import Person
-from models.film import Film
+from .common import prepare_key_by_args
 from .queries.person import person_films_query, person_search_query
 
 PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
+logger = get_logger(__name__)
 
 
 class PersonService:
@@ -48,6 +50,7 @@ class PersonService:
         key = prepare_key_by_args(
             name=name, page_size=page_size, page_number=page_number
         )
+        logger.info("Search person in cache by key <{0}>".format(key))  # type: ignore
         persons = await self._persons_by_key_from_cache(key)
         if not persons:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
@@ -79,7 +82,7 @@ class PersonService:
     ) -> Optional[List[Person]]:
         # Пытаемся получить данные о персоне из кеша по ключу, используя команду hget
         # https://redis.io/commands/get/
-        data = await self.redis.hget("person", key)
+        data = await self.redis.hget("person_key", key)
         if not data:
             return None
 
@@ -96,8 +99,8 @@ class PersonService:
         # https://redis.io/commands/set/
         # pydantic позволяет сериализовать модель в json
 
-        await self.redis.hset("person_films", key, orjson.dumps(persons, default=dict))
-        await self.redis.expire("person_films", PERSON_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.hset("person_key", key, orjson.dumps(persons, default=dict))
+        await self.redis.expire("person_key", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
     async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
         try:

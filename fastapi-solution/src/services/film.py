@@ -1,18 +1,20 @@
 from functools import lru_cache
 from itertools import tee
-from typing import Dict, Iterator, Optional, Tuple, List
+from typing import Dict, Iterator, List, Optional, Tuple
 
 import orjson
-
-from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
-from fastapi import Depends, HTTPException
-from redis.asyncio import Redis
-
 from core import config
-from core.logger import LOGGING
+from core.logger import LOGGING, get_logger
 from db.elastic import get_elastic
 from db.redis import get_redis
+from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
+from fastapi import Depends, HTTPException
 from models.film import Film
+from redis.asyncio import Redis
+
+from .common import prepare_key_by_args
+
+logger = get_logger(__name__)
 
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
@@ -37,7 +39,7 @@ class FilmService:
             page_number (Optional[int]): The page number to retrieve.
             sort_field (Optional[str]): The field to sort the results by.
             filter_field (Optional[Tuple[str, str]]): The field to filter the results by.
-            search_query: Optional[str]: The phrase to search. 
+            search_query: Optional[str]: The phrase to search.
 
         Returns:
             Tuple[int, Iterator[Film]]: A tuple containing the total number of films
@@ -49,9 +51,15 @@ class FilmService:
         # кеш может разниться для различных параметров поиска
         # поэтому сохраняем аргументы в строке, которую будем использовать
         # как ключ
-        args_key = '_'.join(map(str, (page_size, page_number, sort_field, filter_field)))
+        key = prepare_key_by_args(
+            page_size=page_size,
+            page_number=page_number,
+            sort_field=sort_field,
+            filter_field=filter_field,
+        )
+        logger.info("Search person in cache by key <{0}>".format(key))  # type: ignore
 
-        films_count, films = await self._films_list_from_cache(args_key)
+        films_count, films = await self._films_list_from_cache(key)
 
         if page_number:
             from_index = page_size * (page_number - 1)
@@ -128,55 +136,55 @@ class FilmService:
             query_size = max_query_size
 
         query = {
-            'query': {
-                'bool': {
-                    'must': {
-                        'match_all': {},
+            "query": {
+                "bool": {
+                    "must": {
+                        "match_all": {},
                     },
                 },
             },
-            'size': query_size,
-            'from': from_index or 0,
+            "size": query_size,
+            "from": from_index or 0,
         }
 
         if filter_field:
-            query['query']['bool']['filter'] = {
-                'terms': filter_field,
+            query["query"]["bool"]["filter"] = {
+                "terms": filter_field,
             }
 
         if sort_field:
-            query['sort'] = [sort_field]
+            query["sort"] = [sort_field]
 
         if search_query and search_fields:
-            query['query']['bool']['must'] = {
-                'multi_match': {
-                    'query': search_query,
-                    'fields': search_fields,
-                    'fuzziness': 'AUTO',
-                    'operator': 'and',
+            query["query"]["bool"]["must"] = {
+                "multi_match": {
+                    "query": search_query,
+                    "fields": search_fields,
+                    "fuzziness": "AUTO",
+                    "operator": "and",
                 },
             }
 
         scroll = None
         if paginate_query_request:
-            scroll = '5m'
+            scroll = "5m"
 
-        response = await self.elastic.search(index='movies', body=query, scroll=scroll)
+        response = await self.elastic.search(index="movies", body=query, scroll=scroll)
 
-        films_count = response['hits']['total']['value']
-        hits = response['hits']['hits']
+        films_count = response["hits"]["total"]["value"]
+        hits = response["hits"]["hits"]
 
         if paginate_query_request:
-            scroll_id = response['_scroll_id']
+            scroll_id = response["_scroll_id"]
             films = []
             while hits:
-                films.extend([Film(**hit['_source']) for hit in hits])
+                films.extend([Film(**hit["_source"]) for hit in hits])
 
                 response = await self.elastic.scroll(scroll_id=scroll_id, scroll=scroll)
-                scroll_id = response['_scroll_id']
-                hits = response['hits']['hits']
+                scroll_id = response["_scroll_id"]
+                hits = response["hits"]["hits"]
         else:
-            films = [Film(**hit['_source']) for hit in hits]
+            films = [Film(**hit["_source"]) for hit in hits]
 
         return (films_count, films)
 
@@ -190,10 +198,10 @@ class FilmService:
             Optional[Film]: The retrieved film.
         """
         try:
-            doc = await self.elastic.get(index='movies', id=film_id)
+            doc = await self.elastic.get(index="movies", id=film_id)
         except NotFoundError:
             return None
-        return Film(**doc['_source'])
+        return Film(**doc["_source"])
 
     async def _film_from_cache(self, film_id: str) -> Optional[Film]:
         # Пытаемся получить данные о фильме из кеша
@@ -204,35 +212,32 @@ class FilmService:
         film = Film.parse_raw(data)
         return film
 
-    async def _films_list_from_cache(self, args_key: str) -> Optional[Film]:
-        data = await self.redis.hget('films', args_key)
+    async def _films_list_from_cache(
+        self, args_key: str | bytes
+    ) -> Tuple[int | None, List[Film] | None]:
+        data = await self.redis.hget("films", args_key)
 
         if not data:
             return None, None
 
         json_data = orjson.loads(data.decode("utf-8"))
-        films_count = json_data['count']
-        films = [Film.parse_obj(film) for film in json_data['values']]
+        films_count = json_data["count"]
+        films = [Film.parse_obj(film) for film in json_data["values"]]
 
         return films_count, films
 
     async def _put_film_to_cache(self, film: Film) -> None:
         # Сохраняем данные о фильме в кеше
-        await self.redis.set(str(film.id),
-                             film.json(),
-                             FILM_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.set(str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
 
-    async def _put_films_to_cache(self,
-                                  args_key: str,
-                                  films_count: int,
-                                  films: Iterator[Film]) -> None:
-        data = {'count': films_count,
-                'values': list(films)
-                }
+    async def _put_films_to_cache(
+        self, args_key: str, films_count: int, films: Iterator[Film]
+    ) -> None:
+        data = {"count": films_count, "values": list(films)}
         json_data = orjson.dumps(data, default=dict)
 
-        await self.redis.hset('films', args_key, json_data)
-        await self.redis.expire('films', FILM_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.hset("films", args_key, json_data)
+        await self.redis.expire("films", FILM_CACHE_EXPIRE_IN_SECONDS)
 
 
 @lru_cache()
