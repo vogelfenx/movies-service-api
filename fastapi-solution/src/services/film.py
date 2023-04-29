@@ -1,6 +1,8 @@
 from functools import lru_cache
 from typing import Dict, Iterator, Optional, Tuple
 
+import orjson
+
 from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
 from fastapi import Depends, HTTPException
 from redis.asyncio import Redis
@@ -42,7 +44,13 @@ class FilmService:
         Raises:
             HTTPException: If an error occurs while fetching films from Elasticsearch.
         """
-        films_count, films = await self._films_list_from_cache()  # TODO redis
+
+        # кеш может разниться для различных параметров поиска
+        # поэтому сохраняем аргументы в строке, которую будем использовать
+        # как ключ
+        args_key = '_'.join(map(str, (page_size, page_number, sort_field, filter_field)))
+
+        films_count, films = await self._films_list_from_cache(args_key)
 
         if page_number:
             from_index = page_size * (page_number - 1)
@@ -58,7 +66,8 @@ class FilmService:
             except BadRequestError as error:
                 raise HTTPException(status_code=error.status_code)
 
-        # await self._put_films_to_cache(films) # TODO redis
+        # сохраняем в кеш
+        await self._put_films_to_cache(args_key, films_count, films)
 
         return films_count, films
 
@@ -71,13 +80,13 @@ class FilmService:
         Returns:
             Optional[Film]: The retrieved film.
         """
-        # TODO redis: Пытаемся получить данные из кеша, потому что оно работает быстрее
+        # Пытаемся получить данные из кеша, потому что оно работает быстрее
         film = await self._film_from_cache(film_id)
         if not film:
             film = await self._get_film_from_elastic(film_id)
             if not film:
                 return None
-            # TODO redis: Сохраняем фильм  в кеш
+            # Сохраняем фильм в кеш
             await self._put_film_to_cache(film)
 
         return film
@@ -169,8 +178,7 @@ class FilmService:
         return Film(**doc['_source'])
 
     async def _film_from_cache(self, film_id: str) -> Optional[Film]:
-        # TODO redis: Пытаемся получить данные о фильме из кеша, используя команду get
-        # https://redis.io/commands/get/
+        # Пытаемся получить данные о фильме из кеша
         data = await self.redis.get(film_id)
         if not data:
             return None
@@ -178,16 +186,33 @@ class FilmService:
         film = Film.parse_raw(data)
         return film
 
-    async def _films_list_from_cache(self) -> Optional[Film]:
-        # TODO redis: Redis Implementation
-        return None, None
+    async def _films_list_from_cache(self, args_key: str) -> Optional[Film]:
+        data = await self.redis.hget('films', args_key)
+
+        if not data:
+            return None, None
+
+        json_data = orjson.loads(data.decode("utf-8"))
+        films_count = json_data['count']
+        films = [Film.parse_obj(film) for film in json_data['values']]
+
+        return films_count, films
 
     async def _put_film_to_cache(self, film: Film):
-        # TODO redis: Сохраняем данные о фильме, используя команду set
-        # Выставляем время жизни кеша — 5 минут
-        # https://redis.io/commands/set/
-        # pydantic позволяет сериализовать модель в json
-        await self.redis.set(film.id, film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
+        # Сохраняем данные о фильме в кеше
+        await self.redis.set(str(film.id),
+                             film.json(),
+                             FILM_CACHE_EXPIRE_IN_SECONDS)
+
+    async def _put_films_to_cache(self,
+                                  args_key: str,
+                                  films_count: int,
+                                  films: Iterator[Film]):
+        data = {'count': films_count,
+                'values': list(films)
+                }
+        json_data = orjson.dumps(data, default=dict)
+        await self.redis.hset('films', args_key, json_data)
 
 
 @lru_cache()
