@@ -5,7 +5,5 @@ es: Optional[AsyncElasticsearch]
 
 
 # Функция понадобится при внедрении зависимостей
-async def get_elastic() -> AsyncElasticsearch:
-    print("asdasd")
-    print(es)
+async def get_elastic() -> Optional[AsyncElasticsearch]:
     return es

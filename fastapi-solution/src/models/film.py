@@ -22,7 +22,7 @@ class Film(IdMixin, BaseModel):
 
     title: str
     description: Optional[str]
-    imdb_rating: float = 0
+    imdb_rating: Optional[float]
     genre: Optional[List[str]]
     director: Optional[List[str]]
     actors: Optional[List[Person]]
