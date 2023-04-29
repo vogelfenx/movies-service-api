@@ -27,3 +27,16 @@ def person_films_query(id, name):
         },
     }
     return query
+
+
+def person_search_query(name: str):
+    """
+    Returns a query for ES which would search by name
+
+    Args:
+        name (str): May be first name or last name of person
+    """
+    query = {
+        "match": {"name": name},
+    }
+    return query
