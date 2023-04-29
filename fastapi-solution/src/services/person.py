@@ -12,7 +12,7 @@ from db.elastic import get_elastic
 from db.redis import get_redis
 from models.person import Person
 from models.film import Film
-from .queries.person import person_films_query
+from .queries.person import person_films_query, person_search_query
 
 PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
@@ -37,6 +37,65 @@ class PersonService:
             await self._put_person_to_cache(person)
 
         return person
+
+    # get_by_id возвращает объект персоны.
+    # Он опционален, так как персона может отсутствовать в базе
+    async def get_persons_by_name(
+        self, name: str, page_size: int, page_number: int
+    ) -> Optional[List[Person]]:
+        # Пытаемся получить данные из кеша, потому что оно работает быстрее
+        # TODO get redis
+        # person = await self._person_from_cache(person_id)
+        person = None
+        if not person:
+            # Если персоны нет в кеше, то ищем его в Elasticsearch
+            person = await self._get_persons_by_name_from_elastic(
+                name=name, page_size=page_size, page_number=page_number
+            )
+            if not person:
+                # Если он отсутствует в Elasticsearch, то персоны вообще нет в базе
+                return None
+            # Сохраняем персону в кеш
+            # TODO put redis
+            # await self._put_person_to_cache(person)
+
+        return person
+
+    async def _get_persons_by_name_from_elastic(
+        self, name: str, page_size: int, page_number: int
+    ) -> Optional[List[Person]]:
+        query = person_search_query(name=name)
+
+        docs = await self.elastic.search(
+            index="persons", query=query, size=page_size, from_=page_number
+        )
+
+        persons = [Person.parse_obj(x["_source"]) for x in docs["hits"]["hits"]]
+        return persons
+
+    async def _persons_by_name_from_cache(self, person_id: str) -> Optional[Person]:
+        # Пытаемся получить данные о персоне из кеша, используя команду get
+        # https://redis.io/commands/get/
+        data = await self.redis.hget("person", person_id)
+        if not data:
+            return None
+
+        # pydantic предоставляет удобное API для создания объекта моделей из json
+        person_json = orjson.loads(data.decode("utf-8"))
+        person = Person.parse_obj(person_json)
+
+        return person
+
+    async def _put_person_by_name_to_cache(self, name: str, persons: List[Person]):
+        # Сохраняем данные о персоне, используя команду set
+        # Выставляем время жизни кеша — 5 минут
+        # https://redis.io/commands/set/
+        # pydantic позволяет сериализовать модель в json
+
+        # TODO name must be normalaized
+        await self.redis.hset("person_films", name, orjson.dumps(persons, default=dict))
+
+        await self.redis.expire("person_films", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
     async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
         try:
