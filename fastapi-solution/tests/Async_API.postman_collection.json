@@ -155,6 +155,126 @@
 				"url": "{{base_url}}/api/v1/persons/26e83050-29ef-4163-a99d-b546cac208f8/film"
 			},
 			"response": []
+		},
+		{
+			"name": "Запрос фильмов по персоне с поиском",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Compare number of persons. Should be only one person by default data\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.equal(1);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/persons/search?query=Americus Abesamis",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"persons",
+						"search"
+					],
+					"query": [
+						{
+							"key": "query",
+							"value": "Americus Abesamis"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Запрос фильмов по персоне с поиском и пагинацией",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Success answer\", function() {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Check page_size\", function() {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.length).to.equal(10);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/v1/persons/search?query=Mark&page_size=10&page_number=0",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"persons",
+						"search"
+					],
+					"query": [
+						{
+							"key": "query",
+							"value": "Mark"
+						},
+						{
+							"key": "page_size",
+							"value": "10"
+						},
+						{
+							"key": "page_number",
+							"value": "0"
+						}
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"event": [
