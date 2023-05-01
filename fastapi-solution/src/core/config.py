@@ -21,3 +21,6 @@ DEFAULT_ELASTIC_QUERY_SIZE = 10
 
 # Корень проекта
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Шаблон для UUID
+UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"

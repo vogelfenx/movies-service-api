@@ -50,8 +50,10 @@ class DateMixin(BaseModel):
     Mixin class to add datetime fields to a model.
 
     Attributes:
-        created (datetime): The datetime when the model instance was created.
-        modified (datetime): The datetime when the model instance was last modified.
+        created (datetime): The datetime when the\
+              model instance was created.
+        modified (datetime): The datetime when the \
+          model instance was last modified.
     """
 
     created: datetime

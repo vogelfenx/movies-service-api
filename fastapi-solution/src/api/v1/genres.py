@@ -1,9 +1,10 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 from services.genre import GenreService, get_genres_service
+from core import config
 
 router = APIRouter()
 
@@ -21,11 +22,13 @@ class Genre(BaseModel):
 async def genres(
     genre_service: GenreService = Depends(get_genres_service),
 ) -> list[Genre]:
-    """Возвращает список жанров"""
+    """Returns genres"""
 
     genres = await genre_service.get_all()
     if not genres:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="genres not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Genres not found"
+        )
 
     genres_resp = [Genre(uuid=x.id, name=x.name) for x in genres]
     return genres_resp
@@ -34,15 +37,19 @@ async def genres(
 # Внедряем GenreService с помощью Depends(get_genre_service)
 @router.get("/{genre_id}", response_model=Genre)
 async def genre(
-    genre_id: str,
+    genre_id: str = Path(
+        description="Genre's UUID",
+        example="3d8d9bf5-0d90-4353-88ba-4ccc5d2c07ff",
+        regex=config.UUID_REGEXP,
+    ),
     genre_service: GenreService = Depends(get_genres_service),
 ) -> Genre:
-    """Возвращает список жанров"""
+    """Return a genre by id"""
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="genre id=<{0}> not found".format(genre_id),
+            detail="Genre id=<{0}> not found".format(genre_id),
         )
 
     return Genre.parse_obj(genre)

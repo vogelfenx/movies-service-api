@@ -17,8 +17,11 @@ class GenreService:
         self.redis = redis
         self.elastic = elastic
 
-    # возвращает список всех жанров. Он опционален, так как жанр может отсутствовать в базе
+    # Возвращает список всех жанров.
+    # Он опционален, так как жанр может отсутствовать в базе
     async def get_all(self) -> list[Genre] | None:
+        """Returns all genres"""
+
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         genres = await self._genres_from_cache()
         if not genres:
@@ -48,7 +51,7 @@ class GenreService:
         if not data:
             return None
 
-        # pydantic предоставляет удобное API для создания объекта моделей из json
+        # pydantic предоставляет API для создания объекта моделей из json
         genres_json = orjson.loads(data.decode("utf-8"))
         genres = [Genre.parse_obj(x) for x in genres_json]
         return genres
@@ -64,7 +67,8 @@ class GenreService:
             ex=GENRE_CACHE_EXPIRE_IN_SECONDS,
         )
 
-    # возвращает жанр по id. Он опционален, так как жанр может отсутствовать в базе
+    # Возвращает жанр по id.
+    # Он опционален, так как жанр может отсутствовать в базе
     async def get_by_id(self, genre_id: str) -> Genre | None:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         genre = await self._genre_from_cache(genre_id)
@@ -94,7 +98,7 @@ class GenreService:
         if not data:
             return None
 
-        # pydantic предоставляет удобное API для создания объекта моделей из json
+        # pydantic предоставляет API для создания объекта моделей из json
         genre_json = orjson.loads(data.decode("utf-8"))
         genre = Genre.parse_obj(genre_json)
         return genre

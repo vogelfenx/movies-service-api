@@ -1,6 +1,6 @@
 from elasticsearch import AsyncElasticsearch
 
-es: AsyncElasticsearch | None
+es: AsyncElasticsearch | None = None
 
 
 # Функция понадобится при внедрении зависимостей
