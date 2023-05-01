@@ -1,8 +1,9 @@
 from http import HTTPStatus
+from typing import Annotated
 from uuid import UUID
 
 from core import config
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models.common import UUIDMixin
 from models.film import Film as _Film
 from pydantic import BaseModel, Field
@@ -66,9 +67,14 @@ class Film(BaseModel):
 
 @router.get("/search", response_model=list[Person])
 async def person_search(
-    query: str,
-    page_size: int = config.DEFAULT_ELASTIC_QUERY_SIZE,
-    page_number: int = 0,
+    query: Annotated[
+        str, Query(description="Part of name for search", min_length=3, max_length=50)
+    ],
+    page_size: Annotated[
+        int,
+        Query(description="Pagination page size", ge=1),
+    ] = config.DEFAULT_ELASTIC_QUERY_SIZE,
+    page_number: Annotated[int, Query(description="Number of page", ge=0)] = 0,
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Person]:
     """Search a person's films by query (part of name)"""
@@ -100,7 +106,11 @@ async def person_search(
 # Внедряем PersonService с помощью Depends(get_person_service)
 @router.get("/{person_id}/film", response_model=list[Film])
 async def person_films(
-    person_id: str,
+    person_id: str = Path(
+        description="Persons's UUID",
+        example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
+        regex="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+    ),
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Film]:
     """Return a person's films (only films list)"""
@@ -120,7 +130,9 @@ async def person_films(
 @router.get("/{person_id}/", response_model=Person)
 async def person(
     person_id: str = Path(
-        regex="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}"
+        description="Persons's UUID",
+        example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
+        regex="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:
