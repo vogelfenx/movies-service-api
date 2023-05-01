@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import List, Optional
 
 import orjson
 from core.logger import get_logger
@@ -26,7 +25,7 @@ class PersonService:
 
     # get_by_id возвращает объект персоны.
     # Он опционален, так как персона может отсутствовать в базе
-    async def get_by_id(self, person_id: str) -> Optional[Person]:
+    async def get_by_id(self, person_id: str) -> Person | None:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         person = await self._person_from_cache(person_id)
         if not person:
@@ -44,7 +43,7 @@ class PersonService:
     # Он опционален, так как персона может отсутствовать в базе
     async def get_persons_by_name(
         self, name: str, page_size: int, page_number: int
-    ) -> Optional[List[Person]]:
+    ) -> list[Person] | None:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         # TODO get redis
         key = prepare_key_by_args(
@@ -67,7 +66,7 @@ class PersonService:
 
     async def _get_persons_by_name_from_elastic(
         self, name: str, page_size: int, page_number: int
-    ) -> Optional[List[Person]]:
+    ) -> list[Person] | None:
         query = person_search_query(name=name)
 
         docs = await self.elastic.search(
@@ -77,9 +76,7 @@ class PersonService:
         persons = [Person.parse_obj(x["_source"]) for x in docs["hits"]["hits"]]
         return persons
 
-    async def _persons_by_key_from_cache(
-        self, key: str | bytes
-    ) -> Optional[List[Person]]:
+    async def _persons_by_key_from_cache(self, key: str | bytes) -> list[Person] | None:
         # Пытаемся получить данные о персоне из кеша по ключу, используя команду hget
         # https://redis.io/commands/get/
         data = await self.redis.hget("person_key", key)
@@ -92,7 +89,7 @@ class PersonService:
         return persons
 
     async def _put_person_by_key_to_cache(
-        self, key: str | bytes, persons: List[Person]
+        self, key: str | bytes, persons: list[Person]
     ):
         # Сохраняем данные о персоне, используя команду set
         # Выставляем время жизни кеша — 5 минут
@@ -102,7 +99,7 @@ class PersonService:
         await self.redis.hset("person_key", key, orjson.dumps(persons, default=dict))
         await self.redis.expire("person_key", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
-    async def _get_person_from_elastic(self, person_id: str) -> Optional[Person]:
+    async def _get_person_from_elastic(self, person_id: str) -> Person | None:
         try:
             doc = await self.elastic.get(index="persons", id=person_id)
         except NotFoundError:
@@ -110,7 +107,7 @@ class PersonService:
 
         return Person(**doc["_source"])
 
-    async def _person_from_cache(self, person_id: str) -> Optional[Person]:
+    async def _person_from_cache(self, person_id: str) -> Person | None:
         # Пытаемся получить данные о персоне из кеша, используя команду get
         # https://redis.io/commands/get/
         data = await self.redis.hget("person", person_id)
@@ -134,7 +131,7 @@ class PersonService:
     # возвращает список всех жанров. Он опционален, так как жанр может отсутствовать в базе
     async def get_person_films(
         self, person_id: str, person_name: str
-    ) -> Optional[List[Film]]:
+    ) -> list[Film] | None:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         person_films = await self._person_films_from_cache(person_id)
         if not person_films:
@@ -152,7 +149,7 @@ class PersonService:
 
     async def _get_person_films_from_elastic(
         self, person_id: str, person_name: str
-    ) -> Optional[List[Film]]:
+    ) -> list[Film] | None:
         docs = []
         query = person_films_query(id=person_id, name=person_name)
 
@@ -162,7 +159,7 @@ class PersonService:
         person_films = [Film.parse_obj(x["_source"]) for x in docs]
         return person_films
 
-    async def _person_films_from_cache(self, person_id: str) -> Optional[List[Film]]:
+    async def _person_films_from_cache(self, person_id: str) -> list[Film] | None:
         # Пытаемся получить данные о персоне из кеша, используя команду hget
         # https://redis.io/commands/hget/
         data = await self.redis.hget("person_films", person_id)
@@ -175,7 +172,7 @@ class PersonService:
         return person_films
 
     async def _put_person_films_to_cache(
-        self, person_id: str, person_films: List[Film]
+        self, person_id: str, person_films: list[Film]
     ):
         # Сохраняем данные о фильмах, используя команду hset
         # Выставляем время жизни кеша — 10 минут
@@ -190,7 +187,7 @@ class PersonService:
     # возвращает список всех жанров. Он опционален, так как жанр может отсутствовать в базе
     async def get_person_data(
         self, person_id: str, person_name: str
-    ) -> Optional[List[Film]]:
+    ) -> list[Film] | None:
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         person_data = await self._person_data_from_cache(person_id)
         if not person_data:
@@ -208,7 +205,7 @@ class PersonService:
 
     async def _get_person_data_from_elastic(
         self, person_id: str, person_name: str
-    ) -> Optional[List[Film]]:
+    ) -> list[Film] | None:
         docs = []
         query = person_films_query(id=person_id, name=person_name)
 
@@ -218,7 +215,7 @@ class PersonService:
         person_data = [Film.parse_obj(x["_source"]) for x in docs]
         return person_data
 
-    async def _person_data_from_cache(self, person_id: str) -> Optional[List[Film]]:
+    async def _person_data_from_cache(self, person_id: str) -> list[Film] | None:
         # Пытаемся получить данные о персоне из кеша, используя команду hget
         # https://redis.io/commands/hget/
         data = await self.redis.hget("person_data", person_id)
@@ -230,7 +227,7 @@ class PersonService:
         person_data = [Film.parse_obj(x) for x in person_data_json]
         return person_data
 
-    async def _put_person_data_to_cache(self, person_id: str, person_data: List[Film]):
+    async def _put_person_data_to_cache(self, person_id: str, person_data: list[Film]):
         # Сохраняем данные о фильмах, используя команду hset
         # Выставляем время жизни кеша — 10 минут
         # https://redis.io/commands/hset/
