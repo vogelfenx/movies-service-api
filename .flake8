@@ -1,0 +1,14 @@
+[flake8]
+exclude =
+    migrations
+    __pycache__
+    __init__.py
+    manage.py
+    settings.py
+    env
+    .env
+    .venv
+
+extend-ignore = 
+    # Q000: raises linter errors after using black formatter
+    Q000
