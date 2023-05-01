@@ -31,7 +31,9 @@ class Person(UUIDMixin, BaseModel):
         allow_population_by_field_name = True
 
     @classmethod
-    def get_films_roles(cls, person_name: str, films: list[_Film]) -> list[FilmRoles]:
+    def get_films_roles(
+        cls, person_name: str, films: list[_Film]
+    ) -> list[FilmRoles]:
         """Extracts roles from films"""
         films_roles = []
         for film in films:
@@ -41,10 +43,18 @@ class Person(UUIDMixin, BaseModel):
             w = film.writers
             d = film.director
             if a:
-                if list(filter(lambda x: True if x.name == person_name else False, a)):
+                if list(
+                    filter(
+                        lambda x: True if x.name == person_name else False, a
+                    )
+                ):
                     roles.append("actor")
             if w:
-                if list(filter(lambda x: True if x.name == person_name else False, w)):
+                if list(
+                    filter(
+                        lambda x: True if x.name == person_name else False, w
+                    )
+                ):
                     roles.append("writer")
             if d and person_name in d:
                 roles.append("director")
@@ -68,7 +78,10 @@ class Film(BaseModel):
 @router.get("/search", response_model=list[Person])
 async def person_search(
     query: Annotated[
-        str, Query(description="Part of name for search", min_length=3, max_length=50)
+        str,
+        Query(
+            description="Part of name for search", min_length=3, max_length=50
+        ),
     ],
     page_size: Annotated[
         int,
@@ -83,7 +96,9 @@ async def person_search(
         name=query, page_size=page_size, page_number=page_number
     )
     if not persons:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Person not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+        )
 
     for person in persons:
         films = await person_service.get_person_films(
@@ -93,7 +108,9 @@ async def person_search(
             _person = Person(
                 uuid=person.id,
                 full_name=person.name,
-                films=Person.get_films_roles(person_name=person.name, films=films),
+                films=Person.get_films_roles(
+                    person_name=person.name, films=films
+                ),
             )
             person_resp.append(_person)
         else:
@@ -109,7 +126,7 @@ async def person_films(
     person_id: str = Path(
         description="Persons's UUID",
         example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
-        regex="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+        regex=config.UUID_REGEXP,
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Film]:
@@ -117,11 +134,15 @@ async def person_films(
 
     person = await person_service.get_by_id(person_id)
     if not person:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Person not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+        )
 
     films = await person_service.get_person_films(person_id, person.name)
     if not films:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Films not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Films not found"
+        )
 
     films_resp = [Film.parse_obj(x) for x in films]
     return films_resp
@@ -132,14 +153,16 @@ async def person(
     person_id: str = Path(
         description="Persons's UUID",
         example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
-        regex="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}",
+        regex=config.UUID_REGEXP,
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:
     """Return a person's films (only uuid) and roles (as a list)"""
     person = await person_service.get_by_id(person_id)
     if not person:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Person not found")
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+        )
 
     films = await person_service.get_person_films(person_id, person.name)
     if films:

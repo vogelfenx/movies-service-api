@@ -9,7 +9,7 @@ class Genre(IdMixin, BaseModel):
 
     Attributes:
         name (str): The name of the genre.
-        description (Optional[str]): The description of the genre, if available.
+        description (Optional[str]): The description of the genre.
     """
 
     name: str
