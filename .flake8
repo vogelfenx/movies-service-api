@@ -11,4 +11,6 @@ exclude =
 
 extend-ignore = 
     # Q000: raises linter errors after using black formatter
-    Q000
+    Q000,
+    # D100: Docstring in public modules is on using
+    D100
