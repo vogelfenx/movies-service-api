@@ -1,7 +1,5 @@
 version: '3'
 services:
-
-
   api:
     container_name: fast_api_service
     build:
@@ -11,7 +9,6 @@ services:
       - "8000:8000"
     env_file:
       fastapi-solution/.env
-
     deploy:
       restart_policy:
         condition: on-failure
@@ -22,7 +19,6 @@ services:
     depends_on:
       - redis
 
-
   redis:
     container_name: redis_cache
     build:
@@ -32,10 +28,10 @@ services:
     env_file:
       fastapi-solution/.env
     ports:
-      - "6379:6379"
+      - "6379"
 
 
 networks:
   default:
-    external:
-      name: app_movies_network
+    external: true
+    name: app_movies_network
