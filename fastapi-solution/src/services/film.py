@@ -166,7 +166,9 @@ class FilmService:
         if paginate_query_request:
             scroll = "5m"
 
-        response = await self.elastic.search(index="movies", body=query, scroll=scroll)
+        response = await self.elastic.search(
+            index="movies", body=query, scroll=scroll
+        )
 
         films_count = response["hits"]["total"]["value"]
         hits = response["hits"]["hits"]
@@ -177,7 +179,9 @@ class FilmService:
             while hits:
                 films.extend([Film(**hit["_source"]) for hit in hits])
 
-                response = await self.elastic.scroll(scroll_id=scroll_id, scroll=scroll)
+                response = await self.elastic.scroll(
+                    scroll_id=scroll_id, scroll=scroll
+                )
                 scroll_id = response["_scroll_id"]
                 hits = response["hits"]["hits"]
         else:
@@ -224,8 +228,10 @@ class FilmService:
         return films_count, films
 
     async def _put_film_to_cache(self, film: Film) -> None:
-        """Put film to cache."""
-        await self.redis.set(str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
+        # Сохраняем данные о фильме в кеше
+        await self.redis.set(
+            str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS
+        )
 
     async def _put_films_to_cache(
         self, args_key: str, films_count: int, films: Iterator[Film]

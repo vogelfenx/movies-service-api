@@ -11,6 +11,7 @@ COPY requirements.txt requirements.txt
 RUN  pip install --upgrade pip \
      && pip install -r requirements.txt --no-cache-dir
 
+COPY ./Docker_settings/fastapi/run_gunicorn.sh run_gunicorn.sh
 COPY src src
 
-ENTRYPOINT ["python", "src/main.py"]
+ENTRYPOINT ["/bin/bash", "./run_gunicorn.sh"]
