@@ -8,12 +8,12 @@ from redis.asyncio import Redis
 
 
 from api.v1 import films, genres, persons
-from core import config
+from core.config import fast_api_conf
 from core.logger import LOGGING
 from db import elastic, redis
 
 app = FastAPI(
-    title=config.PROJECT_NAME,
+    title=fast_api_conf.PROJECT_NAME,
     docs_url="/api/openapi",
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
@@ -22,9 +22,10 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup():
-    redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
+    redis.redis = Redis(host=fast_api_conf.REDIS_HOST,
+                        port=fast_api_conf.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
-        hosts=[f"http://{config.ELASTIC_HOST}:{config.ELASTIC_PORT}"]
+        hosts=[f"http://{fast_api_conf.ELASTIC_HOST}:{fast_api_conf.ELASTIC_PORT}"]
     )
 
 

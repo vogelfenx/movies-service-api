@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import List, Optional
 from uuid import UUID
 
-from core import config
+from core.config import fast_api_conf
 from fastapi import APIRouter, Depends, HTTPException, Path
 from models.common import UUIDMixin
 from models.film import Film as _Film
@@ -68,7 +68,7 @@ class Film(BaseModel):
 @router.get("/search", response_model=List[Person])
 async def person_search(
     query: str,
-    page_size: int = config.DEFAULT_ELASTIC_QUERY_SIZE,
+    page_size: int = fast_api_conf.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: int = 0,
     person_service: PersonService = Depends(get_person_service),
 ) -> List[Person]:
