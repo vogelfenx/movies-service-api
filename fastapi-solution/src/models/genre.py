@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel
 
 from models.common import ConfigOrjsonMixin, IdMixin
@@ -15,7 +13,7 @@ class Genre(IdMixin, BaseModel):
     """
 
     name: str
-    description: Optional[str]
+    description: str | None
 
     class Config(ConfigOrjsonMixin):
         pass

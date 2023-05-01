@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,10 +17,10 @@ class Genre(BaseModel):
 
 
 # Внедряем GenreService с помощью Depends(get_genre_service)
-@router.get("/", response_model=List[Genre])
+@router.get("/", response_model=list[Genre])
 async def genres(
     genre_service: GenreService = Depends(get_genres_service),
-) -> List[Genre]:
+) -> list[Genre]:
     """Возвращает список жанров"""
 
     genres = await genre_service.get_all()
