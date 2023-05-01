@@ -149,6 +149,3 @@ mypy.ini
 # Pipenv
 Pipfile.lock
 Pipfile
-
-# Docker-compose test
-docker-compose.test.yaml
