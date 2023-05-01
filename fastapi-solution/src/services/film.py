@@ -1,16 +1,17 @@
 from functools import lru_cache
-from itertools import tee
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Iterator
+from uuid import UUID
 
 import orjson
+from elasticsearch import AsyncElasticsearch, NotFoundError
+from fastapi import Depends
+from redis.asyncio import Redis
+
 from core import config
-from core.logger import LOGGING, get_logger
+from core.logger import get_logger
 from db.elastic import get_elastic
 from db.redis import get_redis
-from elasticsearch import AsyncElasticsearch, BadRequestError, NotFoundError
-from fastapi import Depends, HTTPException
 from models.film import Film
-from redis.asyncio import Redis
 
 from .common import prepare_key_by_args
 
@@ -26,96 +27,87 @@ class FilmService:
 
     async def get_films_list(
         self,
-        page_size: Optional[int],
-        page_number: Optional[int],
-        sort_field: Optional[Dict[str, dict]],
-        filter_field: Optional[Dict[str, str]],
-        search_query: Optional[str],
-    ) -> Tuple[int, Iterator[Film]]:
+        page_size: int,
+        page_number: int,
+        sort_field: dict[str, dict] | None = None,
+        filter_field: dict[str, str] | None = None,
+        search_query: str | None = None,
+        search_fields: list[str] | None = None
+    ) -> tuple[int, Iterator[Film]]:
         """
         Fetches films from Redis cache or Elasticsearch index.
 
         Args:
-            page_size (Optional[int]): The list size of the films retrieved per page.
-            page_number (Optional[int]): The page number to retrieve.
-            sort_field (Optional[str]): The field to sort the results by.
-            filter_field (Optional[Tuple[str, str]]): The field to filter the results by.
-            search_query: Optional[str]: The phrase to search.
+            page_size: The list size of the films retrieved per page.
+            page_number: The page number to retrieve.
+            sort_field: The field to sort the results by.
+            filter_field: The field to filter the results by.
+            search_query: The phrase to search.
 
         Returns:
-            Tuple[int, Iterator[Film]]: A tuple containing the total number of films
-              and a list of films.
-
-        Raises:
-            HTTPException: If an error occurs while fetching films from Elasticsearch.
+            A tuple containing the total number of films and a list of films.
         """
+
         # кеш может разниться для различных параметров поиска
         # поэтому сохраняем аргументы в строке, которую будем использовать
         # как ключ
+
         key = prepare_key_by_args(
             page_size=page_size,
             page_number=page_number,
             sort_field=sort_field,
             filter_field=filter_field,
+            search_fields=search_fields,
+            search_query=search_query
         )
         logger.info("Search person in cache by key <{0}>".format(key))  # type: ignore
 
         films_count, films = await self._films_list_from_cache(key)
-        search_fields = ['title', 'description', 'director',
-                         'actors_names', 'writers_names', 'genre']
-
 
         if page_number:
             from_index = page_size * (page_number - 1)
 
         if not films:
-            try:
-                films_count, films = await self._get_films_list_from_elastic(
-                    query_size=page_size,
-                    from_index=from_index,
-                    sort_field=sort_field,
-                    filter_field=filter_field,
-                    search_query=search_query,
-                    search_fields=search_fields,
-                )
+            films_count, films = await self._get_films_list_from_elastic(
+                query_size=page_size,
+                from_index=from_index,
+                sort_field=sort_field,
+                filter_field=filter_field,
+                search_query=search_query,
+                search_fields=search_fields,
+            )
 
-            except BadRequestError as error:
-                raise HTTPException(status_code=error.status_code)
-
-        # сохраняем в кеш
-        await self._put_films_to_cache(args_key, films_count, films)
+        await self._put_films_to_cache(key, films_count, films)
 
         return films_count, films
 
-    async def get_by_id(self, film_id: str) -> Optional[Film]:
+    async def get_by_id(self, film_id: UUID) -> Film | None:
         """Retrieve a film by ID.
 
         Args:
-            film_id (str): The ID of the film to retrieve.
+            film_id: The ID of the film to retrieve.
 
         Returns:
-            Optional[Film]: The retrieved film.
+            The requested film or None.
         """
-        # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        film = await self._film_from_cache(film_id)
+        film = await self._film_from_cache(str(film_id))
         if not film:
             film = await self._get_film_from_elastic(film_id)
             if not film:
                 return None
-            # Сохраняем фильм в кеш
             await self._put_film_to_cache(film)
 
         return film
 
     async def _get_films_list_from_elastic(
         self,
-        query_size: Optional[int],
-        from_index: Optional[int],
-        sort_field: Optional[Dict[str, dict]] = None,
-        filter_field: Optional[Dict[str, str]] = None,
-        search_query: Optional[str] = None,
-        search_fields: Optional[list] = None,
-    ) -> Tuple[int, Iterator[Film]]:
+        query_size: int,
+        from_index: int = 0,
+        sort_field: dict[str, dict] | None = None,
+        filter_field: dict[str, str] | None = None,
+        search_query: str | None = None,
+        search_fields: list[str] | None = None,
+    ) -> tuple[int, Iterator[Film]]:
         """Fetch films from elasticsearch.
 
         If the requested query size is larger than the maximum query size (MAX_ELASTIC_QUERY_SIZE),
@@ -123,16 +115,15 @@ class FilmService:
         to avoid overloading elasticsearch.
 
         Args:
-            query_size (Optional [int]): The size of the query to retrieve.
-            from_index (Optional[int]): The document number to return from.
-            sort_field (Optional[Dict[str, dict]]): The field to sort the results by.
-            filter_field (Optional[Dict[str, str]]): The field to filter the results by.
-            search_query (Optional[str]): The phrase to search.
-            search_fields (Optional[list]): The fields to search in.
+            query_size: The size of the query to retrieve.
+            from_index: The document number to return from.
+            sort_field: The field to sort the results by.
+            filter_field: The field to filter the results by.
+            search_query: The phrase to search.
+            search_fields: The fields to search in.
 
         Returns:
-            Tuple[int, List[Film]]: Total number of documents in the index
-                                        and list of fetched films.
+            Total number of documents in the index and list of fetched films.
         """
         max_query_size = config.MAX_ELASTIC_QUERY_SIZE
         paginate_query_request = False
@@ -194,14 +185,14 @@ class FilmService:
 
         return (films_count, films)
 
-    async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
+    async def _get_film_from_elastic(self, film_id: UUID) -> Film | None:
         """Fetch a film from elasticsearch by ID.
 
         Args:
-            film_id (str): The ID of the film to retrieve.
+            film_id: The ID of the film to retrieve.
 
         Returns:
-            Optional[Film]: The retrieved film.
+            The requested film.
         """
         try:
             doc = await self.elastic.get(index="movies", id=film_id)
@@ -209,8 +200,8 @@ class FilmService:
             return None
         return Film(**doc["_source"])
 
-    async def _film_from_cache(self, film_id: str) -> Optional[Film]:
-        # Пытаемся получить данные о фильме из кеша
+    async def _film_from_cache(self, film_id: str) -> Film | None:
+        """Search for a film in cache by film ID."""
         data = await self.redis.get(film_id)
         if not data:
             return None
@@ -220,7 +211,7 @@ class FilmService:
 
     async def _films_list_from_cache(
         self, args_key: str | bytes
-    ) -> Tuple[int | None, List[Film] | None]:
+    ) -> tuple[int | None, list[Film] | None]:
         data = await self.redis.hget("films", args_key)
 
         if not data:
@@ -233,12 +224,13 @@ class FilmService:
         return films_count, films
 
     async def _put_film_to_cache(self, film: Film) -> None:
-        # Сохраняем данные о фильме в кеше
+        """Put film to cache."""
         await self.redis.set(str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS)
 
     async def _put_films_to_cache(
         self, args_key: str, films_count: int, films: Iterator[Film]
     ) -> None:
+        """Put films to cache."""
         data = {"count": films_count, "values": list(films)}
         json_data = orjson.dumps(data, default=dict)
 
