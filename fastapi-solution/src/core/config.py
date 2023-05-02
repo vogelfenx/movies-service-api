@@ -37,4 +37,4 @@ class ApiConfig(BaseSettings):
         case_sensitive = False
 
 
-fast_api_conf = ApiConfig()
+fast_api_conf = ApiConfig()  # type: ignore
