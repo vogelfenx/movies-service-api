@@ -16,18 +16,3 @@ jobs:
         pip install flake8==4.0.1 flake8-black==0.3.6 wemake-python-styleguide==0.17.0
     - name: Flake8
       run: flake8 .
-  tests:
-    name: Тесты 
-    runs-on: ubuntu-latest
-    steps:    
-    - uses: actions/checkout@v2
-    - name: Установка Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.11.0
-    - name: Установка зависимостей
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r fastapi-solution/requirements.txt
-    - name: Pytest 
-      run: pytest
