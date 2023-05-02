@@ -15,4 +15,4 @@ COPY ./Docker_settings/fastapi/run_gunicorn.sh run_gunicorn.sh
 COPY src src
 WORKDIR /opt/app/src
 
-ENTRYPOINT ["/bin/bash", "../run_gunicorn.sh"]
+ENTRYPOINT ["/bin/bash", "./run_gunicorn.sh"]

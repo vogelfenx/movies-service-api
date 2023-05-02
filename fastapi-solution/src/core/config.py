@@ -25,7 +25,9 @@ class ApiConfig(BaseSettings):
     DEFAULT_ELASTIC_QUERY_SIZE = 10
 
     # Корень проекта
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    file_path = os.path.abspath(__file__)
+    dir_path = os.path.dirname(file_path)
+    BASE_DIR = os.path.dirname(dir_path)
 
     class Config:
         env_file = '../.env'
@@ -33,3 +35,6 @@ class ApiConfig(BaseSettings):
 
 
 fast_api_conf = ApiConfig()
+
+# Шаблон для UUID
+UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"

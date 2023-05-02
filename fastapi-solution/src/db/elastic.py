@@ -1,9 +1,8 @@
-from typing import Optional
 from elasticsearch import AsyncElasticsearch
 
-es: Optional[AsyncElasticsearch]
+es: AsyncElasticsearch | None = None
 
 
-# Функция понадобится при внедрении зависимостей
-async def get_elastic() -> Optional[AsyncElasticsearch]:
+async def get_elastic() -> AsyncElasticsearch | None:
+    """For dependency."""
     return es

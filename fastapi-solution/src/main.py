@@ -1,16 +1,10 @@
-import logging
-
-import uvicorn
+from api.v1 import films, genres, persons
+from core.config import fast_api_conf
+from db import elastic, redis
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
-
-
-from api.v1 import films, genres, persons
-from core.config import fast_api_conf
-from core.logger import LOGGING
-from db import elastic, redis
 
 app = FastAPI(
     title=fast_api_conf.PROJECT_NAME,
@@ -22,28 +16,28 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup():
-    redis.redis = Redis(host=fast_api_conf.REDIS_HOST,
-                        port=fast_api_conf.REDIS_PORT)
+    """Start dependency."""
+    redis.redis = Redis(host=fast_api_conf.REDIS_HOST, port=fast_api_conf.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
-        hosts=[f"http://{fast_api_conf.ELASTIC_HOST}:{fast_api_conf.ELASTIC_PORT}"]
+        hosts=[
+            "http://{host}:{port}".format(
+                host=fast_api_conf.ELASTIC_HOST,
+                port=fast_api_conf.ELASTIC_PORT,
+            ),
+        ],
     )
 
 
 @app.on_event("shutdown")
 async def shutdown():
-    await redis.redis.close()
-    await elastic.es.close()
+    """Stop dependency."""
+    if redis.redis:
+        await redis.redis.close()
+    if elastic.es:
+        await elastic.es.close()
 
 
-# Подключаем роутер к серверу, указав префикс /v1/films
 # Теги указываем для удобства навигации по документации
 app.include_router(films.router, prefix="/api/v1/films", tags=["films"])
 app.include_router(genres.router, prefix="/api/v1/genres", tags=["genres"])
 app.include_router(persons.router, prefix="/api/v1/persons", tags=["persons"])
-
-if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-    )
