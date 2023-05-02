@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from core import config
+from core.config import fast_api_conf
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models.common import UUIDMixin
 from models.film import Film as _Film
@@ -51,7 +51,9 @@ class Person(UUIDMixin, BaseModel):
             if a:
                 if list(
                     filter(
-                        lambda x: True if x.name == person_name else False,
+                        lambda x: True
+                        if x and x.name == person_name
+                        else False,
                         a,
                     ),
                 ):
@@ -59,7 +61,9 @@ class Person(UUIDMixin, BaseModel):
             if w:
                 if list(
                     filter(
-                        lambda x: True if x.name == person_name else False,
+                        lambda x: True
+                        if x and x.name == person_name
+                        else False,
                         w,
                     ),
                 ):
@@ -98,7 +102,7 @@ async def person_search(
     page_size: Annotated[
         int,
         Query(description="Pagination page size", ge=1),
-    ] = config.DEFAULT_ELASTIC_QUERY_SIZE,
+    ] = fast_api_conf.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Annotated[
         int,
         Query(description="Number of page", ge=0),
@@ -156,7 +160,7 @@ async def person_films(
     person_id: str = Path(
         description="Persons's UUID",
         example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
-        regex=config.UUID_REGEXP,
+        regex=fast_api_conf.UUID_REGEXP,
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Film]:
@@ -187,7 +191,7 @@ async def person(
     person_id: str = Path(
         description="Persons's UUID",
         example="8b197ae2-38c2-48c7-8cf6-6dc234d16efb",
-        regex=config.UUID_REGEXP,
+        regex=fast_api_conf.UUID_REGEXP,
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:

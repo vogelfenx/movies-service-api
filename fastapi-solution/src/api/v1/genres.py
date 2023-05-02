@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from core import config
+from core.config import fast_api_conf
 from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 from services.genre import GenreService, get_genres_service
@@ -45,7 +45,7 @@ async def genre(
     genre_id: str = Path(
         description="Genre's UUID",
         example="3d8d9bf5-0d90-4353-88ba-4ccc5d2c07ff",
-        regex=config.UUID_REGEXP,
+        regex=fast_api_conf.UUID_REGEXP,
     ),
     genre_service: GenreService = Depends(get_genres_service),
 ) -> Genre:
