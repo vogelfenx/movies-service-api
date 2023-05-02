@@ -110,9 +110,10 @@ class FilmService:
     ) -> tuple[int, Iterator[Film]]:
         """Fetch films from elasticsearch.
 
-        If the requested query size is larger than the maximum query size (MAX_ELASTIC_QUERY_SIZE),
-        the query will be paginated using elasticsearch's scrolling functionality,
-        to avoid overloading elasticsearch.
+        If the requested query size is larger than
+        the maximum query size (MAX_ELASTIC_QUERY_SIZE),
+        the query will be paginated using elasticsearch's scrolling
+        functionality, to avoid overloading elasticsearch.
 
         Args:
             query_size: The size of the query to retrieve.

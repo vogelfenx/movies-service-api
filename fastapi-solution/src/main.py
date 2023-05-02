@@ -17,7 +17,8 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup():
     """Start dependency."""
-    redis.redis = Redis(host=fast_api_conf.REDIS_HOST, port=fast_api_conf.REDIS_PORT)
+    redis.redis = Redis(host=fast_api_conf.REDIS_HOST,
+                        port=fast_api_conf.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
         hosts=[
             "http://{host}:{port}".format(

@@ -109,7 +109,9 @@ async def films_search(
     )
 
 
-@router.get("/", response_model=ResponseFilms, response_model_exclude_unset=True)
+@router.get("/",
+            response_model=ResponseFilms,
+            response_model_exclude_unset=True)
 async def films_list(
     pagination_parameters: PaginationParameters,
     sort: Annotated[str | None, Query(
@@ -123,7 +125,8 @@ async def films_list(
     """
     ### Retrieve a paginated list of films.
 
-    The list of retrieved films can optionally be filtered by genre and sorted by a specified order field.
+    The list of retrieved films can optionally be filtered by genre
+    and sorted by a specified order field.
 
     ### Query arguments:
     - **page_size**: The size of the films retrieved per page.
@@ -171,7 +174,9 @@ async def films_list(
     )
 
 
-@router.get("/{film_id}/", response_model=Film, response_model_exclude_unset=True)
+@router.get("/{film_id}/",
+            response_model=Film,
+            response_model_exclude_unset=True)
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
     film_service: FilmService = Depends(get_film_service)
