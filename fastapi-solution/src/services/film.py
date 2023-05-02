@@ -1,9 +1,8 @@
 from functools import lru_cache
-from itertools import tee
 from typing import Dict, Iterator, List, Optional, Tuple
 
 import orjson
-from core import config
+from core.config import fast_api_conf
 from core.logger import LOGGING, get_logger
 from db.elastic import get_elastic
 from db.redis import get_redis
@@ -128,7 +127,7 @@ class FilmService:
             Tuple[int, List[Film]]: Total number of documents in the index
                                         and list of fetched films.
         """
-        max_query_size = config.MAX_ELASTIC_QUERY_SIZE
+        max_query_size = fast_api_conf.MAX_ELASTIC_QUERY_SIZE
         paginate_query_request = False
 
         if query_size > max_query_size:

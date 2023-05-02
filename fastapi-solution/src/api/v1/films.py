@@ -3,7 +3,7 @@ from typing import Annotated, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from core import config
+from core.config import fast_api_conf
 from models import Film
 from services.film import FilmService, get_film_service
 
@@ -12,7 +12,7 @@ router = APIRouter()
 
 @router.get("/", response_model=dict, response_model_exclude_unset=True)
 async def films_list(
-    page_size: Optional[int] = config.DEFAULT_ELASTIC_QUERY_SIZE,
+    page_size: Optional[int] = fast_api_conf.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Optional[int] = 1,
     sort: Optional[str] = None,
     genre: Annotated[list[str] | None, Query()] = None,

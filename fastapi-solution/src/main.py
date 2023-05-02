@@ -1,5 +1,5 @@
 from api.v1 import films, genres, persons
-from core import config
+from core.config import fast_api_conf
 from db import elastic, redis
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -7,7 +7,7 @@ from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
 app = FastAPI(
-    title=config.PROJECT_NAME,
+    title=fast_api_conf.PROJECT_NAME,
     docs_url="/api/openapi",
     openapi_url="/api/openapi.json",
     default_response_class=ORJSONResponse,
@@ -17,12 +17,12 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup():
     """Start dependency."""
-    redis.redis = Redis(host=config.REDIS_HOST, port=config.REDIS_PORT)
+    redis.redis = Redis(host=fast_api_conf.REDIS_HOST, port=fast_api_conf.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
         hosts=[
             "http://{host}:{port}".format(
-                host=config.ELASTIC_HOST,
-                port=config.ELASTIC_PORT,
+                host=fast_api_conf.ELASTIC_HOST,
+                port=fast_api_conf.ELASTIC_PORT,
             ),
         ],
     )
