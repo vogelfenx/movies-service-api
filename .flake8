@@ -1,0 +1,78 @@
+[flake8]
+exclude =
+    migrations
+    __pycache__
+    __init__.py
+    manage.py
+    settings.py
+    env
+    .env
+    .venv
+
+extend-ignore = 
+    # Q000: raises linter errors after using black formatter
+    Q000,
+    # D100: Docstring in public modules is on using
+    D100,
+    # DAR101: Missing parameter(s) in Docstring
+    DAR101,
+    # Missing "Returns" in Docstring
+    DAR201,
+    # WPS404: Found complex default value
+    WPS404,
+    # WPS226 Found string literal over-use
+    WPS226,
+    # WPS111 Found too short name:
+    WPS111,
+    # WPS214 Found too many methods
+    WPS214,
+    # B008 Do not perform function calls in argument defaults.
+    B008,
+    # BLK100 Black would make changes.
+    BLK100,
+    # D107 Missing docstring in __init__
+    D107,
+    # WPS352 Found multiline loop
+    WPS352,
+    # WPS201 Found module with too many imports
+    WPS201,
+    # WPS300 Found local folder import
+    WPS300,
+    # WPS306 Found class without a base class
+    WPS306,
+    # WPS338 Found incorrect order of methods in a class
+    WPS338,
+    # WPS432 Found magic number
+    WPS432,
+    # WPS301 Found dotted raw import
+    WPS301,
+    # WPS458 Found imports collision
+    WPS458,
+    # WPS347 Found vague import that may cause confusion
+    WPS347,
+    # WPS323 Found `%` string formatting
+    WPS407,
+    # WPS323 Found `%` string formatting
+    WPS323,
+    # N400: Found backslash that is used for line breaking
+    N400,
+    # WPS318 Found extra indentation
+    WPS318,
+    # WPS509 Found incorrectly nested ternary
+    WPS509,
+    # WPS337 Found multiline conditions
+    WPS337,
+    # WPS232 Found module cognitive complexity that is too high
+    WPS232,
+    # WPS210 Found too many local variables: 6 > 5
+    WPS210,
+    # WPS426 Found `lambda` in loop's body
+    WPS426,
+    # WPS502 Found simplifiable `if` condition
+    WPS502,
+    # WPS231 Found function with too much cognitive complexity
+    WPS231,
+    # WPS320 Found multi-line function type annotation
+    WPS320, 
+per-file-ignores =
+    *test.py:S101,D103,WPS432

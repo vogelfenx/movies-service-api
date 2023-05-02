@@ -1,11 +1,9 @@
-from pydantic import BaseModel
-
 from models.common import ConfigOrjsonMixin, IdMixin
+from pydantic import BaseModel
 
 
 class Genre(IdMixin, BaseModel):
-    """
-    Genre model class.
+    """Genre model class.
 
     Attributes:
         name (str): The name of the genre.
@@ -16,4 +14,4 @@ class Genre(IdMixin, BaseModel):
     description: str | None
 
     class Config(ConfigOrjsonMixin):
-        pass
+        """Configuration for orjson."""
