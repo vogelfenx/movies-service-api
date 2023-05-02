@@ -40,7 +40,8 @@ class ResponseFilms(BaseModel):
         super().__init__(**data)
         self.total_pages = ceil(self.films_count / self.page_size)
 
-        self.next_page = self.page_number + 1 if self.page_number < self.total_pages else None
+        self.next_page = self.page_number + \
+            1 if self.page_number < self.total_pages else None
         self.prev_page = self.page_number - 1 if self.page_number > 1 else None
 
     class Config(ConfigOrjsonMixin):
@@ -60,7 +61,7 @@ async def pagination_parameters(
     """Common pagination parameters."""
     return {
         "page_size": page_size,
-        "page_number": page_number
+        "page_number": page_number,
     }
 
 
@@ -187,7 +188,8 @@ async def film_details(
     film = await film_service.get_by_id(film_id)
 
     if not film:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND)
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
+                            detail=FILM_NOT_FOUND)
 
     return Film(
         id=film.id,
