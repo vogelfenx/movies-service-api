@@ -16,10 +16,10 @@ router = APIRouter()
 
 
 class ResponseFilms(BaseModel):
-    """Response model for the film list endpoints"""
+    """Response model for the film list endpoints."""
 
     class _ResponseFilm(BaseModel):
-        """Response film submodel"""
+        """Response film submodel."""
 
         id: UUID = Field(alias="uuid")
         title: str
@@ -56,9 +56,9 @@ async def pagination_parameters(
     page_number: Annotated[int, Query(
         description="The page number to retrieve",
         ge=1,
-    )] = 1
+    )] = 1,
 ):
-    """Common pagination parameters."""
+    """Define common pagination parameters."""
     return {
         "page_size": page_size,
         "page_number": page_number,
@@ -98,14 +98,14 @@ async def films_search(
         page_size=page_size,
         page_number=page_number,
         search_query=query,
-        search_fields=search_fields
+        search_fields=search_fields,
     )
 
     return ResponseFilms(
         page_size=page_size,
         page_number=page_number,
         films_count=films_count,
-        films=films
+        films=films,
     )
 
 
@@ -115,10 +115,10 @@ async def films_search(
 async def films_list(
     pagination_parameters: PaginationParameters,
     sort: Annotated[str | None, Query(
-        description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`"
+        description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`",
     )] = None,
     genre: Annotated[list[str] | None, Query(
-        description="Filter by genre, e.g. `Action`"
+        description="Filter by genre, e.g. `Action`",
     )] = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> ResponseFilms:
@@ -170,7 +170,7 @@ async def films_list(
         page_size=page_size,
         page_number=page_number,
         films_count=films_count,
-        films=films
+        films=films,
     )
 
 
@@ -179,7 +179,7 @@ async def films_list(
             response_model_exclude_unset=True)
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
-    film_service: FilmService = Depends(get_film_service)
+    film_service: FilmService = Depends(get_film_service),
 ) -> Film:
     """
     ### Retrieve the details of a specific film.
