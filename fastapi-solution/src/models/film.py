@@ -1,32 +1,32 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from models.common import ConfigOrjsonMixin, IdMixin
+from models.common import ConfigOrjsonMixin, UUIDMixin
 from models.person import Person
 
 
-class Film(IdMixin, BaseModel):
+class Film(UUIDMixin, BaseModel):
     """
     Film model class.
 
     Attributes:
-        title (str): Title of the film.
-        description (Optional[str]): Description of the film, if available.
-        imdb_rating (float, optional): Rating of the film on IMDB. Defaults to 0.
-        genre (Optional[List[Genre]]): A list of genres of the film.
-        director (Optional[List[str]]): A list of directors of the film.
-        actors (Optional[List[Person]]): A list of actors, if available.
-        writers (Optional[List[Person]]): A list of writers, if available.
+        title: Title of the film.
+        description: Description of the film, if available.
+        imdb_rating: Rating of the film on IMDB. Defaults to 0.
+        genre: A list of genres of the film.
+        director: A list of directors of the film.
+        actors: A list of actors, if available.
+        writers: A list of writers, if available.
     """
 
     title: str
-    description: Optional[str]
-    imdb_rating: Optional[float]
-    genre: Optional[List[str]]
-    director: Optional[List[str]]
-    actors: Optional[List[Person]]
-    writers: Optional[List[Person]]
+    description: str | None
+    imdb_rating: float | None
+    genre: list[str | None] = []
+    director: list[str | None] = []
+    actors: list[Person | None] = []
+    writers: list[Person | None] = []
 
     class Config(ConfigOrjsonMixin):
-        pass
+        allow_population_by_field_name = True
