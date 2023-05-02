@@ -2,7 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from core.config import fast_api_conf
+from core.config import fast_api_conf, es_conf
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models.common import UUIDMixin
 from models.film import Film as _Film
@@ -102,7 +102,7 @@ async def person_search(
     page_size: Annotated[
         int,
         Query(description="Pagination page size", ge=1),
-    ] = fast_api_conf.DEFAULT_ELASTIC_QUERY_SIZE,
+    ] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Annotated[
         int,
         Query(description="Number of page", ge=0),
