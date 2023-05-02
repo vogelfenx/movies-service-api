@@ -29,12 +29,12 @@ class ApiConfig(BaseSettings):
     dir_path = os.path.dirname(file_path)
     BASE_DIR = os.path.dirname(dir_path)
 
+    # Шаблон для UUID
+    UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"
+
     class Config:
-        env_file = '../.env'
+        env_file = "../.env"
         case_sensitive = False
 
 
 fast_api_conf = ApiConfig()
-
-# Шаблон для UUID
-UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"
