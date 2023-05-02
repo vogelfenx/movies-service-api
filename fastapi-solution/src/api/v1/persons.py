@@ -13,28 +13,34 @@ router = APIRouter()
 
 
 class FilmRoles(UUIDMixin, BaseModel):
-    """Response nested model contains film uuid and roles"""
+    """Response nested model contains film uuid and roles."""
 
     roles: list[str] = Field(default_factory=list)
 
     class Config:
+        """Config for aliases."""
+
         allow_population_by_field_name = True
 
 
 class Person(UUIDMixin, BaseModel):
-    """Response person model with only specific fields"""
+    """Response person model with only specific fields."""
 
     name: str = Field(alias="full_name")
     films: list[FilmRoles] = Field(default_factory=list)
 
     class Config:
+        """Config for aliases."""
+
         allow_population_by_field_name = True
 
     @classmethod
     def get_films_roles(
-        cls, person_name: str, films: list[_Film]
+        cls,
+        person_name: str,
+        films: list[_Film],
     ) -> list[FilmRoles]:
-        """Extracts roles from films"""
+        """Extract roles from films."""
         films_roles = []
         for film in films:
             roles = []
@@ -45,15 +51,17 @@ class Person(UUIDMixin, BaseModel):
             if a:
                 if list(
                     filter(
-                        lambda x: True if x.name == person_name else False, a
-                    )
+                        lambda x: True if x.name == person_name else False,
+                        a,
+                    ),
                 ):
                     roles.append("actor")
             if w:
                 if list(
                     filter(
-                        lambda x: True if x.name == person_name else False, w
-                    )
+                        lambda x: True if x.name == person_name else False,
+                        w,
+                    ),
                 ):
                     roles.append("writer")
             if d and person_name in d:
@@ -65,13 +73,15 @@ class Person(UUIDMixin, BaseModel):
 
 
 class Film(BaseModel):
-    """Response film model with only specific fields"""
+    """Response film model with only specific fields."""
 
     id: UUID = Field(alias="uuid")
     title: str
     imdb_rating: float
 
     class Config:
+        """Config for aliases."""
+
         allow_population_by_field_name = True
 
 
@@ -80,42 +90,62 @@ async def person_search(
     query: Annotated[
         str,
         Query(
-            description="Part of name for search", min_length=3, max_length=50
+            description="Part of name for search",
+            min_length=3,
+            max_length=50,
         ),
     ],
     page_size: Annotated[
         int,
         Query(description="Pagination page size", ge=1),
     ] = config.DEFAULT_ELASTIC_QUERY_SIZE,
-    page_number: Annotated[int, Query(description="Number of page", ge=0)] = 0,
+    page_number: Annotated[
+        int,
+        Query(description="Number of page", ge=0),
+    ] = 0,
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Person]:
-    """Search a person's films by query (part of name)"""
+    """Search a person's films by query (part of name).
+
+    Raises:
+        HTTPException: If requested person not found.
+    """
     person_resp: list[Person] = []
     persons = await person_service.get_persons_by_name(
-        name=query, page_size=page_size, page_number=page_number
+        name=query,
+        page_size=page_size,
+        page_number=page_number,
     )
     if not persons:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Person not found",
         )
 
     for person in persons:
         films = await person_service.get_person_films(
-            person_id=str(person.id), person_name=person.name
+            person_id=str(person.id),
+            person_name=person.name,
         )
         if films:
-            _person = Person(
-                uuid=person.id,
-                full_name=person.name,
-                films=Person.get_films_roles(
-                    person_name=person.name, films=films
+            person_resp.append(
+                Person(
+                    uuid=person.id,
+                    full_name=person.name,
+                    films=Person.get_films_roles(
+                        person_name=person.name,
+                        films=films,
+                    ),
                 ),
             )
-            person_resp.append(_person)
         else:
-            _person = Person(uuid=person.id, full_name=person.name, films=[])
-            person_resp.append(_person)
+            person_resp.append(
+                Person(
+                    uuid=person.id,
+                    full_name=person.name,
+                    films=[],
+                ),
+            )
 
     return person_resp
 
@@ -130,22 +160,26 @@ async def person_films(
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> list[Film]:
-    """Return a person's films (only films list)"""
+    """Return a person's films (only films list).
 
+    Raises:
+        HTTPException: If requested person or films not found.
+    """
     person = await person_service.get_by_id(person_id)
     if not person:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Person not found",
         )
 
     films = await person_service.get_person_films(person_id, person.name)
     if not films:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Films not found"
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Films not found",
         )
 
-    films_resp = [Film.parse_obj(x) for x in films]
-    return films_resp
+    return [Film.parse_obj(x) for x in films]
 
 
 @router.get("/{person_id}/", response_model=Person)
@@ -157,21 +191,30 @@ async def person(
     ),
     person_service: PersonService = Depends(get_person_service),
 ) -> Person:
-    """Return a person's films (only uuid) and roles (as a list)"""
-    person = await person_service.get_by_id(person_id)
-    if not person:
+    """Return a person's films (only uuid) and roles (as a list).
+
+    Raises:
+        HTTPException: If requested person not found.
+    """
+    person_model = await person_service.get_by_id(person_id)
+    if not person_model:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Person not found"
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Person not found",
         )
 
-    films = await person_service.get_person_films(person_id, person.name)
+    films = await person_service.get_person_films(person_id, person_model.name)
     if films:
-        _person = Person(
-            uuid=person.id,
-            full_name=person.name,
-            films=Person.get_films_roles(person_name=person.name, films=films),
+        return Person(
+            uuid=person_model.id,
+            full_name=person_model.name,
+            films=Person.get_films_roles(
+                person_name=person_model.name,
+                films=films,
+            ),
         )
-    else:
-        _person = Person(uuid=person.id, full_name=person.name, films=[])
-
-    return _person
+    return Person(
+        uuid=person_model.id,
+        full_name=person_model.name,
+        films=[],
+    )

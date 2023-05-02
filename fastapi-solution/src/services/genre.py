@@ -13,6 +13,8 @@ GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
 
 
 class GenreService:
+    """Contain a merhods for fetching data from ES or Redis."""
+
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         self.redis = redis
         self.elastic = elastic
@@ -20,8 +22,7 @@ class GenreService:
     # Возвращает список всех жанров.
     # Он опционален, так как жанр может отсутствовать в базе
     async def get_all(self) -> list[Genre] | None:
-        """Returns all genres"""
-
+        """Return all genres."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         genres = await self._genres_from_cache()
         if not genres:
@@ -36,27 +37,29 @@ class GenreService:
         return genres
 
     async def _get_genres_from_elastic(self) -> list[Genre] | None:
+        """Return all genres from elastic."""
         docs = []
 
         async for doc in async_scan(client=self.elastic, index="genres"):
             docs.append(doc)
 
-        genres = [Genre.parse_obj(x["_source"]) for x in docs]
-        return genres
+        return [Genre.parse_obj(x["_source"]) for x in docs]
 
     async def _genres_from_cache(self) -> list[Genre] | None:
+        """Return all genres from cache."""
         # Пытаемся получить данные о жанре из кеша, используя команду get
         # https://redis.io/commands/get/
-        data = await self.redis.get("genres")
-        if not data:
+        redis_data = await self.redis.get("genres")
+        if not redis_data:
             return None
 
         # pydantic предоставляет API для создания объекта моделей из json
-        genres_json = orjson.loads(data.decode("utf-8"))
-        genres = [Genre.parse_obj(x) for x in genres_json]
-        return genres
+        genres_json = orjson.loads(redis_data.decode("utf-8"))
+
+        return [Genre.parse_obj(x) for x in genres_json]
 
     async def _put_genres_to_cache(self, genres: list[Genre]):
+        """Save all genres from elastic."""
         # Сохраняем данные о жанрах, используя команду set
         # Выставляем время жизни кеша — 10 минут
         # https://redis.io/commands/set/
@@ -70,6 +73,7 @@ class GenreService:
     # Возвращает жанр по id.
     # Он опционален, так как жанр может отсутствовать в базе
     async def get_by_id(self, genre_id: str) -> Genre | None:
+        """Return a genre by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         genre = await self._genre_from_cache(genre_id)
         if not genre:
@@ -84,6 +88,7 @@ class GenreService:
         return genre
 
     async def _get_genre_from_elastic(self, genre_id: str) -> Genre | None:
+        """Return a genre from elastic by id."""
         try:
             doc = await self.elastic.get(index="genres", id=genre_id)
         except NotFoundError:
@@ -92,24 +97,19 @@ class GenreService:
         return Genre(**doc["_source"])
 
     async def _genre_from_cache(self, genre_id: str) -> Genre | None:
+        """Return a genre from cache by id."""
         # Пытаемся получить данные о жанре из кеша, используя команду hget
         # https://redis.io/commands/hget/
-        data = await self.redis.hget("genre", genre_id)
-        if not data:
+        redis_data = await self.redis.hget("genre", genre_id)
+        if not redis_data:
             return None
 
         # pydantic предоставляет API для создания объекта моделей из json
-        genre_json = orjson.loads(data.decode("utf-8"))
-        genre = Genre.parse_obj(genre_json)
-        return genre
+        genre_json = orjson.loads(redis_data.decode("utf-8"))
+        return Genre.parse_obj(genre_json)
 
     async def _put_genre_to_cache(self, genre: Genre):
-        # Сохраняем данные о жанрах, используя команду set
-        # Выставляем время жизни кеша — 10 минут
-        # https://redis.io/commands/set/
-        # pydantic позволяет сериализовать модель в json
-        # redis.hset("genre", "1", g2.json())
-
+        """Save a genre to cache."""
         await self.redis.hset("genre", str(genre.id), genre.json())
         await self.redis.expire("genre", GENRE_CACHE_EXPIRE_IN_SECONDS)
 
@@ -119,4 +119,5 @@ def get_genres_service(
     redis: Redis = Depends(get_redis),
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> GenreService:
+    """Use for set the dependency in api route."""
     return GenreService(redis, elastic)
