@@ -1,8 +1,8 @@
 from datetime import datetime
+from uuid import UUID
 
 from orjson import dumps, loads
 from pydantic import BaseModel, Field
-from uuid import UUID
 
 
 def orjson_dumps(v, *, default):

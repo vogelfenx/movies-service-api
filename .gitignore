@@ -135,7 +135,7 @@ dmypy.json
 .python-version
 
 # flake8
-.flake8
+# .flake8
 
 # self help file 
 .help

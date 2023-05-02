@@ -1,40 +1,45 @@
 from http import HTTPStatus
 from uuid import UUID
 
+from core import config
 from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 from services.genre import GenreService, get_genres_service
-from core import config
 
 router = APIRouter()
 
 
 class Genre(BaseModel):
+    """Genre response model."""
+
     id: UUID = Field(alias="uuid")
     name: str
 
     class Config:
+        """Config for aliasing."""
+
         allow_population_by_field_name = True
 
 
-# Внедряем GenreService с помощью Depends(get_genre_service)
 @router.get("/", response_model=list[Genre])
 async def genres(
     genre_service: GenreService = Depends(get_genres_service),
 ) -> list[Genre]:
-    """Returns genres"""
+    """Return genres.
 
-    genres = await genre_service.get_all()
-    if not genres:
+    Raises:
+        HTTPException: If requested genres not found.
+    """
+    genres_list = await genre_service.get_all()
+    if not genres_list:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail="Genres not found"
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="Genres not found",
         )
 
-    genres_resp = [Genre(uuid=x.id, name=x.name) for x in genres]
-    return genres_resp
+    return [Genre(uuid=x.id, name=x.name) for x in genres_list]
 
 
-# Внедряем GenreService с помощью Depends(get_genre_service)
 @router.get("/{genre_id}", response_model=Genre)
 async def genre(
     genre_id: str = Path(
@@ -44,12 +49,16 @@ async def genre(
     ),
     genre_service: GenreService = Depends(get_genres_service),
 ) -> Genre:
-    """Return a genre by id"""
-    genre = await genre_service.get_by_id(genre_id)
-    if not genre:
+    """Return a genre by id.
+
+    Raises:
+        HTTPException: If requested genre not found.
+    """
+    genre_model = await genre_service.get_by_id(genre_id)
+    if not genre_model:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail="Genre id=<{0}> not found".format(genre_id),
         )
 
-    return Genre.parse_obj(genre)
+    return Genre.parse_obj(genre_model)
