@@ -63,12 +63,15 @@ class FilmService:
         )
         logger.info("Search films in cache by key <{0}>".format(key))
 
+        # Нестыковка типов
         films_count, films = await self._films_list_from_cache(key)
 
         if page_number:
             from_index = page_size * (page_number - 1)
 
         if not films:
+            # "Iterator[Any]", variable "Optional[List[Any]]"
+            # и ниже from_index может отсутсвовать вовсе, нужно учесть
             films_count, films = await self._get_films_list_from_elastic(
                 query_size=page_size,
                 from_index=from_index,
@@ -78,8 +81,10 @@ class FilmService:
                 search_fields=search_fields,
             )
 
+        # Нестыковка типов
         await self._put_films_to_cache(key, films_count, films)
 
+        # Нестыковка типов
         return films_count, films
 
     async def get_by_id(self, film_id: UUID) -> Film | None:
@@ -146,8 +151,12 @@ class FilmService:
             "from": from_index or 0,
         }
 
+        # mypy не нравится эта часть, хоть она и правильная
+        # попробуй пересмотреть этот вариант или оставь type ignore
+        # с ним ошибка не высвечивается
+        # Value of type "object" is not indexable
         if filter_field:
-            query["query"]["bool"]["filter"] = {
+            query["query"]["bool"]["filter"] = {  # type: ignore
                 "terms": filter_field,
             }
 
@@ -155,7 +164,7 @@ class FilmService:
             query["sort"] = [sort_field]
 
         if search_query and search_fields:
-            query["query"]["bool"]["must"] = {
+            query["query"]["bool"]["must"] = {  # type: ignore
                 "multi_match": {
                     "query": search_query,
                     "fields": search_fields,
@@ -168,8 +177,16 @@ class FilmService:
         if paginate_query_request:
             scroll = "5m"
 
+        # Этот вариант работает, однако,
+        # параметр body где-то спрятан в глубинах
+        # попробуй использоваться query
+        # пример в persons (обрати внимание, что в
+        # таком запросе чуть по другому выглядит
+        # словарь query
         response = await self.elastic.search(
-            index="movies", body=query, scroll=scroll,
+            index="movies",
+            body=query,
+            scroll=scroll,
         )
 
         films_count = response["hits"]["total"]["value"]
@@ -182,13 +199,16 @@ class FilmService:
                 films.extend([Film(**hit["_source"]) for hit in hits])
 
                 response = await self.elastic.scroll(
-                    scroll_id=scroll_id, scroll=scroll,
+                    scroll_id=scroll_id,
+                    scroll=scroll,
                 )
                 scroll_id = response["_scroll_id"]
                 hits = response["hits"]["hits"]
         else:
             films = [Film(**hit["_source"]) for hit in hits]
 
+        # films_count неизвестного типа
+        # у films нестыковка типов
         return (films_count, films)
 
     async def _get_film_from_elastic(self, film_id: UUID) -> Film | None:
@@ -201,6 +221,7 @@ class FilmService:
             The requested film.
         """
         try:
+            # str<>UUID
             doc = await self.elastic.get(index="movies", id=film_id)
         except NotFoundError:
             return None
@@ -227,6 +248,7 @@ class FilmService:
         Returns:
             Count of films list items, list of films objects
         """
+        # list[str] не может быть ключом (аннотации)
         data = await self.redis.hget("films", args_key)
 
         if not data:
@@ -246,11 +268,16 @@ class FilmService:
             Film object
         """
         await self.redis.set(
-            str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS,
+            str(film.id),
+            film.json(),
+            FILM_CACHE_EXPIRE_IN_SECONDS,
         )
 
     async def _put_films_to_cache(
-        self, args_key: str, films_count: int, films: Iterator[Film],
+        self,
+        args_key: str,
+        films_count: int,
+        films: Iterator[Film],
     ) -> None:
         """Put films to cache.
 

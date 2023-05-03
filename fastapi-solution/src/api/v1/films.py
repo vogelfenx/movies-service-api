@@ -40,8 +40,11 @@ class ResponseFilms(BaseModel):
         super().__init__(**data)
         self.total_pages = ceil(self.films_count / self.page_size)
 
-        self.next_page = self.page_number + \
-            1 if self.page_number < self.total_pages else None
+        self.next_page = (
+            self.page_number + 1
+            if self.page_number < self.total_pages
+            else None
+        )
         self.prev_page = self.page_number - 1 if self.page_number > 1 else None
 
     class Config(ConfigOrjsonMixin):
@@ -49,14 +52,20 @@ class ResponseFilms(BaseModel):
 
 
 async def pagination_parameters(
-    page_size: Annotated[int, Query(
-        description="The size of the results to retrieve per page",
-        ge=1,
-    )] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
-    page_number: Annotated[int, Query(
-        description="The page number to retrieve",
-        ge=1,
-    )] = 1,
+    page_size: Annotated[
+        int,
+        Query(
+            description="The size of the results to retrieve per page",
+            ge=1,
+        ),
+    ] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
+    page_number: Annotated[
+        int,
+        Query(
+            description="The page number to retrieve",
+            ge=1,
+        ),
+    ] = 1,
 ):
     """Define common pagination parameters."""
     return {
@@ -91,8 +100,14 @@ async def films_search(
     page_number = pagination_parameters["page_number"]
     page_size = pagination_parameters["page_size"]
 
-    search_fields = ['title', 'description', 'director',
-                     'actors_names', 'writers_names', 'genre']
+    search_fields = [
+        "title",
+        "description",
+        "director",
+        "actors_names",
+        "writers_names",
+        "genre",
+    ]
 
     films_count, films = await film_service.get_films_list(
         page_size=page_size,
@@ -109,17 +124,23 @@ async def films_search(
     )
 
 
-@router.get("/",
-            response_model=ResponseFilms,
-            response_model_exclude_unset=True)
+@router.get(
+    "/", response_model=ResponseFilms, response_model_exclude_unset=True
+)
 async def films_list(
     pagination_parameters: PaginationParameters,
-    sort: Annotated[str | None, Query(
-        description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`",
-    )] = None,
-    genre: Annotated[list[str] | None, Query(
-        description="Filter by genre, e.g. `Action`",
-    )] = None,
+    sort: Annotated[
+        str | None,
+        Query(
+            description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`",
+        ),
+    ] = None,
+    genre: Annotated[
+        list[str] | None,
+        Query(
+            description="Filter by genre, e.g. `Action`",
+        ),
+    ] = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> ResponseFilms:
     """
@@ -141,15 +162,20 @@ async def films_list(
     page_number = pagination_parameters["page_number"]
     page_size = pagination_parameters["page_size"]
 
+    # кажется не очень хорошей практикой изменять
+    # переменные из параметров, как минимум типы
+    # уже не сходятся
     if genre:
         genre = {"genre": genre}
 
     if sort:
         order = "asc" if sort[0] == "+" else "desc" if sort[0] == "-" else None
+        # тут так же
         sort = {
             sort[1:]: {"order": order},
         }
 
+    # ниже не сходятся типы sort и genre
     films_count, films = await film_service.get_films_list(
         page_size=page_size,
         page_number=page_number,
@@ -157,6 +183,7 @@ async def films_list(
         filter_field=genre,
     )
 
+    # ниже не сходятся типы
     films = (
         Film(
             id=film.id,
@@ -174,9 +201,9 @@ async def films_list(
     )
 
 
-@router.get("/{film_id}/",
-            response_model=Film,
-            response_model_exclude_unset=True)
+@router.get(
+    "/{film_id}/", response_model=Film, response_model_exclude_unset=True
+)
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
     film_service: FilmService = Depends(get_film_service),
@@ -193,9 +220,11 @@ async def film_details(
     film = await film_service.get_by_id(film_id)
 
     if not film:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail=FILM_NOT_FOUND)
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND
+        )
 
+    # ниже не сходятся типы
     return Film(
         id=film.id,
         title=film.title,
