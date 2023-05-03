@@ -7,7 +7,7 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
 
-from core.config import fast_api_conf
+from core.config import es_conf
 from core.logger import get_logger
 from db.elastic import get_elastic
 from db.redis import get_redis
@@ -125,7 +125,7 @@ class FilmService:
         Returns:
             Total number of documents in the index and list of fetched films.
         """
-        max_query_size = fast_api_conf.MAX_ELASTIC_QUERY_SIZE
+        max_query_size = es_conf.MAX_ELASTIC_QUERY_SIZE
         paginate_query_request = False
 
         if query_size > max_query_size:

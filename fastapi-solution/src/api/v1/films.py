@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from api.messages import FILM_NOT_FOUND
-from core.config import fast_api_conf
+from core.config import es_conf
 from models import Film
 from models.common import ConfigOrjsonMixin
 from services.film import FilmService, get_film_service
@@ -51,7 +51,7 @@ async def pagination_parameters(
     page_size: Annotated[int, Query(
         description="The size of the results to retrieve per page",
         ge=1,
-    )] = fast_api_conf.DEFAULT_ELASTIC_QUERY_SIZE,
+    )] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
     page_number: Annotated[int, Query(
         description="The page number to retrieve",
         ge=1,
