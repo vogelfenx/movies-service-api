@@ -5,8 +5,6 @@ services:
     build:
       dockerfile: Docker_settings/fastapi/Dockerfiles/Dockerfile
       context: fastapi-solution
-    ports:
-      - "8000:8000"
     env_file:
       fastapi-solution/.env
     deploy:
@@ -27,9 +25,6 @@ services:
 
     env_file:
       fastapi-solution/.env
-    ports:
-      - "6379"
-
 
 networks:
   default:
