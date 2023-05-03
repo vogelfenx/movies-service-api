@@ -9,32 +9,50 @@ from core.logger import LOGGING
 logging_config.dictConfig(LOGGING)
 
 
-class ApiConfig(BaseSettings):
-    # Название проекта. Используется в Swagger-документации
-    PROJECT_NAME: str
-
-    # Настройки Redis
-    REDIS_HOST: str
-    REDIS_PORT: int
-
-    # Настройки Elasticsearch
-    ELASTIC_HOST: str
-    ELASTIC_PORT: int
-
-    MAX_ELASTIC_QUERY_SIZE = 10000
-    DEFAULT_ELASTIC_QUERY_SIZE = 10
-
+class CommonSettings(BaseSettings):
+    """
+    Общий конфиг-класс
+    """
     # Корень проекта
     file_path = os.path.abspath(__file__)
     dir_path = os.path.dirname(file_path)
     BASE_DIR = os.path.dirname(dir_path)
-
-    # Шаблон для UUID
-    UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"
 
     class Config:
         env_file = "../.env"
         case_sensitive = False
 
 
-fast_api_conf = ApiConfig()  # type: ignore
+class ApiSettings(CommonSettings):
+    """
+    Класс с настройками FastAPI
+    """
+    # Название проекта. Используется в Swagger-документации
+    PROJECT_NAME: str
+
+    # Шаблон для UUID
+    UUID_REGEXP = r"[\w\d]{8}-[\w\d]{4}-[\w\d]{4}-[\w\d]{4}-[\w\d]{12}"
+
+
+class ESSettings(CommonSettings):
+    """
+    Класс с настройками Elasticsearch
+    """
+    ELASTIC_HOST: str
+    ELASTIC_PORT: int
+
+    MAX_ELASTIC_QUERY_SIZE = 10000
+    DEFAULT_ELASTIC_QUERY_SIZE = 10
+
+
+class RedisSettings(CommonSettings):
+    """
+    Класс с настройками Redis
+    """
+    REDIS_HOST: str
+    REDIS_PORT: int
+
+
+fast_api_conf = ApiSettings()  # type: ignore
+es_conf = ESSettings()  # type: ignore
+redis_conf = RedisSettings()  # type: ignore

@@ -1,5 +1,5 @@
 from api.v1 import films, genres, persons
-from core.config import fast_api_conf
+from core.config import fast_api_conf, es_conf, redis_conf
 from db import elastic, redis
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -17,13 +17,12 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup():
     """Start dependency."""
-    redis.redis = Redis(host=fast_api_conf.REDIS_HOST,
-                        port=fast_api_conf.REDIS_PORT)
+    redis.redis = Redis(host=redis_conf.REDIS_HOST, port=redis_conf.REDIS_PORT)
     elastic.es = AsyncElasticsearch(
         hosts=[
             "http://{host}:{port}".format(
-                host=fast_api_conf.ELASTIC_HOST,
-                port=fast_api_conf.ELASTIC_PORT,
+                host=es_conf.ELASTIC_HOST,
+                port=es_conf.ELASTIC_PORT,
             ),
         ],
     )

@@ -7,7 +7,7 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
 
-from core.config import fast_api_conf
+from core.config import es_conf
 from core.logger import get_logger
 from db.elastic import get_elastic
 from db.redis import get_redis
@@ -61,8 +61,7 @@ class FilmService:
             search_fields=search_fields,
             search_query=search_query,
         )
-        # type: ignore
-        logger.info("Search person in cache by key <{0}>".format(key))
+        logger.info("Search films in cache by key <{0}>".format(key))
 
         films_count, films = await self._films_list_from_cache(key)
 
@@ -128,7 +127,7 @@ class FilmService:
         Returns:
             Total number of documents in the index and list of fetched films.
         """
-        max_query_size = fast_api_conf.MAX_ELASTIC_QUERY_SIZE
+        max_query_size = es_conf.MAX_ELASTIC_QUERY_SIZE
         paginate_query_request = False
 
         if query_size > max_query_size:
@@ -217,8 +216,17 @@ class FilmService:
         return film
 
     async def _films_list_from_cache(
-        self, args_key: str | bytes,
+        self, args_key: list[str]
     ) -> tuple[int | None, list[Film] | None]:
+        """
+        Fetch films from cache
+
+        Args:
+            args_key: The key for films list to retrieve
+
+        Returns:
+            Count of films list items, list of films objects
+        """
         data = await self.redis.hget("films", args_key)
 
         if not data:
@@ -231,7 +239,12 @@ class FilmService:
         return films_count, films
 
     async def _put_film_to_cache(self, film: Film) -> None:
-        # Сохраняем данные о фильме в кеше
+        """
+        Put film to cache
+
+        Args:
+            Film object
+        """
         await self.redis.set(
             str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS,
         )
@@ -239,7 +252,13 @@ class FilmService:
     async def _put_films_to_cache(
         self, args_key: str, films_count: int, films: Iterator[Film],
     ) -> None:
-        """Put films to cache."""
+        """Put films to cache.
+
+        Args:
+            args_key: query args for function get_films_list
+            films_count: count of films list, that was fetched
+            films: films that was fetched
+        """
         data = {"count": films_count, "values": list(films)}
         json_data = orjson.dumps(data, default=dict)
 
