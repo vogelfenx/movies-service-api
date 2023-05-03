@@ -79,7 +79,7 @@ PaginationParameters = Annotated[dict, Depends(pagination_parameters)]
 
 @router.get("/search", response_model=ResponseFilms)
 async def films_search(
-    pagination_parameters: PaginationParameters,
+    pagination_params: PaginationParameters,
     query: Annotated[str, Query(description="Search by query")],
     film_service: FilmService = Depends(get_film_service),
 ) -> ResponseFilms:
@@ -97,8 +97,8 @@ async def films_search(
     A dictionary containing the paginated list of `Film` objects,
     along with the total number of films and pagination details.
     """
-    page_number = pagination_parameters["page_number"]
-    page_size = pagination_parameters["page_size"]
+    page_number = pagination_params["page_number"]
+    page_size = pagination_params["page_size"]
 
     search_fields = [
         "title",
@@ -128,7 +128,7 @@ async def films_search(
     "/", response_model=ResponseFilms, response_model_exclude_unset=True
 )
 async def films_list(
-    pagination_parameters: PaginationParameters,
+    pagination_params: PaginationParameters,
     sort: Annotated[
         str | None,
         Query(
@@ -159,8 +159,8 @@ async def films_list(
     A dictionary containing the paginated list of `Film` objects,
     along with the total number of films and pagination details.
     """
-    page_number = pagination_parameters["page_number"]
-    page_size = pagination_parameters["page_size"]
+    page_number = pagination_params["page_number"]
+    page_size = pagination_params["page_size"]
 
     # кажется не очень хорошей практикой изменять
     # переменные из параметров, как минимум типы
