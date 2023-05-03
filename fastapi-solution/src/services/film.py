@@ -21,6 +21,8 @@ FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class FilmService:
+    """FilmService class."""
+
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         self.redis = redis
         self.elastic = elastic
@@ -32,10 +34,10 @@ class FilmService:
         sort_field: dict[str, dict] | None = None,
         filter_field: dict[str, str] | None = None,
         search_query: str | None = None,
-        search_fields: list[str] | None = None
+        search_fields: list[str] | None = None,
     ) -> tuple[int, Iterator[Film]]:
         """
-        Fetches films from Redis cache or Elasticsearch index.
+        Fetch films from Redis cache or Elasticsearch index.
 
         Args:
             page_size: The list size of the films retrieved per page.
@@ -47,7 +49,6 @@ class FilmService:
         Returns:
             A tuple containing the total number of films and a list of films.
         """
-
         # кеш может разниться для различных параметров поиска
         # поэтому сохраняем аргументы в строке, которую будем использовать
         # как ключ
@@ -58,9 +59,9 @@ class FilmService:
             sort_field=sort_field,
             filter_field=filter_field,
             search_fields=search_fields,
-            search_query=search_query
+            search_query=search_query,
         )
-        logger.info("Search films in cache by key <{0}>".format(key))  # type: ignore
+        logger.info("Search films in cache by key <{0}>".format(key))
 
         films_count, films = await self._films_list_from_cache(key)
 
@@ -110,9 +111,10 @@ class FilmService:
     ) -> tuple[int, Iterator[Film]]:
         """Fetch films from elasticsearch.
 
-        If the requested query size is larger than the maximum query size (MAX_ELASTIC_QUERY_SIZE),
-        the query will be paginated using elasticsearch's scrolling functionality,
-        to avoid overloading elasticsearch.
+        If the requested query size is larger than
+        the maximum query size (MAX_ELASTIC_QUERY_SIZE),
+        the query will be paginated using elasticsearch's scrolling
+        functionality, to avoid overloading elasticsearch.
 
         Args:
             query_size: The size of the query to retrieve.
@@ -167,7 +169,7 @@ class FilmService:
             scroll = "5m"
 
         response = await self.elastic.search(
-            index="movies", body=query, scroll=scroll
+            index="movies", body=query, scroll=scroll,
         )
 
         films_count = response["hits"]["total"]["value"]
@@ -180,7 +182,7 @@ class FilmService:
                 films.extend([Film(**hit["_source"]) for hit in hits])
 
                 response = await self.elastic.scroll(
-                    scroll_id=scroll_id, scroll=scroll
+                    scroll_id=scroll_id, scroll=scroll,
                 )
                 scroll_id = response["_scroll_id"]
                 hits = response["hits"]["hits"]
@@ -244,11 +246,11 @@ class FilmService:
             Film object
         """
         await self.redis.set(
-            str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS
+            str(film.id), film.json(), FILM_CACHE_EXPIRE_IN_SECONDS,
         )
 
     async def _put_films_to_cache(
-        self, args_key: str, films_count: int, films: Iterator[Film]
+        self, args_key: str, films_count: int, films: Iterator[Film],
     ) -> None:
         """Put films to cache.
 

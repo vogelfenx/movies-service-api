@@ -1,6 +1,4 @@
-from typing import List, Optional
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from models.common import ConfigOrjsonMixin, UUIDMixin
 from models.person import Person
