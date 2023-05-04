@@ -74,5 +74,13 @@ extend-ignore =
     WPS231,
     # WPS320 Found multi-line function type annotation
     WPS320, 
+    # WPS431 Found nested class: _ResponseFilm
+    WPS431,
+    # WPS601 Found shadowed class attribute
+    WPS601,
+    # WPS211 Found too many arguments
+    WPS211,
+    # WPS221 Found line with high Jones Complexity
+    WPS221
 per-file-ignores =
     *test.py:S101,D103,WPS432

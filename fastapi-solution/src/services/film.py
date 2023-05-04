@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Iterator
 from uuid import UUID
 
 import orjson
@@ -31,7 +30,7 @@ class FilmService:
         self,
         page_size: int,
         page_number: int,
-        sort_field: dict[str, dict[str, str]] | None = None,
+        sort_field: dict[str, dict[str, str | None]] | None = None,
         filter_field: dict[str, list[str]] | None = None,
         search_query: str | None = None,
         search_fields: list[str] | None = None,
@@ -49,10 +48,6 @@ class FilmService:
         Returns:
             A tuple containing the total number of films and a list of films.
         """
-        # кеш может разниться для различных параметров поиска
-        # поэтому сохраняем аргументы в строке, которую будем использовать
-        # как ключ
-
         key = prepare_key_by_args(
             page_size=page_size,
             page_number=page_number,
@@ -65,10 +60,9 @@ class FilmService:
 
         films_count, films = await self._films_list_from_cache(key)
 
-        if page_number:
-            from_index = page_size * (page_number - 1)
+        from_index = page_size * (page_number - 1)
 
-        if not films:
+        if not films or not films_count:
             films_count, films = await self._get_films_list_from_elastic(
                 query_size=page_size,
                 from_index=from_index,
@@ -104,7 +98,7 @@ class FilmService:
         self,
         query_size: int,
         from_index: int = 0,
-        sort_field: dict[str, dict[str, str]] | None = None,
+        sort_field: dict[str, dict[str, str | None]] | None = None,
         filter_field: dict[str, list[str]] | None = None,
         search_query: str | None = None,
         search_fields: list[str] | None = None,
@@ -168,15 +162,9 @@ class FilmService:
         if paginate_query_request:
             scroll = "5m"
 
-        # Этот вариант работает, однако,
-        # параметр body где-то спрятан в глубинах
-        # попробуй использоваться query
-        # пример в persons (обрати внимание, что в
-        # таком запросе чуть по другому выглядит
-        # словарь query
         response = await self.elastic.search(
             index="movies",
-            body=query,
+            body=query,  # type: ignore
             scroll=scroll,
         )
 
@@ -214,26 +202,25 @@ class FilmService:
             The requested film.
         """
         try:
-            # str<>UUID
-            doc = await self.elastic.get(index="movies", id=film_id)
+            doc = await self.elastic.get(index="movies", id=str(film_id))
         except NotFoundError:
             return None
         return Film(**doc["_source"])
 
     async def _film_from_cache(self, film_id: str) -> Film | None:
         """Search for a film in cache by film ID."""
-        data = await self.redis.get(film_id)
-        if not data:
+        film_data = await self.redis.get(film_id)
+        if not film_data:
             return None
 
-        film = Film.parse_raw(data)
-        return film
+        return Film.parse_raw(film_data)
 
     async def _films_list_from_cache(
-        self, args_key: str
+        self,
+        args_key: str,
     ) -> tuple[int | None, list[Film] | None]:
         """
-        Fetch films from cache
+        Fetch films from cache.
 
         Args:
             args_key: The key for films list to retrieve
@@ -241,13 +228,12 @@ class FilmService:
         Returns:
             Count of films list items, list of films objects
         """
-        # list[str] не может быть ключом (аннотации)
-        data = await self.redis.hget("films", args_key)
+        films_data = await self.redis.hget("films", args_key)
 
-        if not data:
+        if not films_data:
             return None, None
 
-        json_data = orjson.loads(data.decode("utf-8"))
+        json_data = orjson.loads(films_data.decode("utf-8"))
         films_count = json_data["count"]
         films = [Film.parse_obj(film) for film in json_data["values"]]
 
@@ -255,7 +241,7 @@ class FilmService:
 
     async def _put_film_to_cache(self, film: Film) -> None:
         """
-        Put film to cache
+        Put film to cache.
 
         Args:
             Film object
@@ -279,8 +265,8 @@ class FilmService:
             films_count: count of films list, that was fetched
             films: films that was fetched
         """
-        data = {"count": films_count, "values": list(films)}
-        json_data = orjson.dumps(data, default=dict)
+        films_data = {"count": films_count, "values": list(films)}
+        json_data = orjson.dumps(films_data, default=dict)
 
         await self.redis.hset("films", args_key, json_data)
         await self.redis.expire("films", FILM_CACHE_EXPIRE_IN_SECONDS)
@@ -291,4 +277,5 @@ def get_film_service(
     redis: Redis = Depends(get_redis),
     elastic: AsyncElasticsearch = Depends(get_elastic),
 ) -> FilmService:
+    """Use for set the dependency in api route."""
     return FilmService(redis, elastic)

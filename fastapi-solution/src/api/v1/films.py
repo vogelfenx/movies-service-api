@@ -3,13 +3,12 @@ from math import ceil
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import BaseModel, Field
-
 from api.messages import FILM_NOT_FOUND
 from core.config import es_conf
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models import Film
 from models.common import ConfigOrjsonMixin
+from pydantic import BaseModel, Field
 from services.film import FilmService, get_film_service
 
 router = APIRouter()
@@ -26,6 +25,8 @@ class ResponseFilms(BaseModel):
         imdb_rating: float | None
 
         class Config(ConfigOrjsonMixin):
+            """Config for aliasing."""
+
             allow_population_by_field_name = True
 
     films_count: int
@@ -48,6 +49,8 @@ class ResponseFilms(BaseModel):
         self.prev_page = self.page_number - 1 if self.page_number > 1 else None
 
     class Config(ConfigOrjsonMixin):
+        """Config for aliasing."""
+
         allow_population_by_field_name = True
 
 
@@ -125,7 +128,9 @@ async def films_search(
 
 
 @router.get(
-    "/", response_model=ResponseFilms, response_model_exclude_unset=True,
+    "/",
+    response_model=ResponseFilms,
+    response_model_exclude_unset=True,
 )
 async def films_list(
     pagination_params: PaginationParameters,
@@ -162,11 +167,18 @@ async def films_list(
     page_number = pagination_params["page_number"]
     page_size = pagination_params["page_size"]
 
+    genres = None
+    sort_field = None
+
     if genre:
         genres = {"genre": genre}
-
     if sort:
-        order = "asc" if sort[0] == "+" else "desc" if sort[0] == "-" else None
+        order = None
+        if sort[0] == "+":
+            order = "asc"
+        elif sort[0] == "-":
+            order = "desc"
+
         sort_field = {
             sort[1:]: {"order": order},
         }
@@ -180,9 +192,10 @@ async def films_list(
 
     films = (
         Film(
-            id=film.id,
+            uuid=film.id,
             title=film.title,
             imdb_rating=film.imdb_rating,
+            description=None,
         )
         for film in films
     )
@@ -196,7 +209,9 @@ async def films_list(
 
 
 @router.get(
-    "/{film_id}/", response_model=Film, response_model_exclude_unset=True,
+    "/{film_id}/",
+    response_model=Film,
+    response_model_exclude_unset=True,
 )
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
@@ -210,16 +225,20 @@ async def film_details(
 
     ### Returns:
     The film with the details.
+
+    ### Raises:
+        HTTPException: If film not found.
     """
     film = await film_service.get_by_id(film_id)
 
     if not film:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND,
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=FILM_NOT_FOUND,
         )
 
     return Film(
-        id=film.id,
+        uuid=film.id,
         title=film.title,
         imdb_rating=film.imdb_rating,
         description=film.description,

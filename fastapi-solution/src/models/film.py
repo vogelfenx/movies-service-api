@@ -1,7 +1,6 @@
-from pydantic import BaseModel
-
 from models.common import ConfigOrjsonMixin, UUIDMixin
 from models.person import Person
+from pydantic import BaseModel
 
 
 class Film(UUIDMixin, BaseModel):
@@ -27,4 +26,6 @@ class Film(UUIDMixin, BaseModel):
     writers: list[Person | None] = []
 
     class Config(ConfigOrjsonMixin):
+        """Config for aliasing."""
+
         allow_population_by_field_name = True
