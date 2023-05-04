@@ -218,6 +218,7 @@ class FilmService:
     async def _films_list_from_cache(
         self,
         args_key: str,
+
     ) -> tuple[int | None, list[Film] | None]:
         """
         Fetch films from cache.
