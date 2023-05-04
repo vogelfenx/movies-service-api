@@ -3,13 +3,12 @@ from math import ceil
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import BaseModel, Field
-
 from api.messages import FILM_NOT_FOUND
 from core.config import es_conf
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models import Film
 from models.common import ConfigOrjsonMixin
+from pydantic import BaseModel, Field
 from services.film import FilmService, get_film_service
 
 router = APIRouter()
@@ -26,6 +25,8 @@ class ResponseFilms(BaseModel):
         imdb_rating: float | None
 
         class Config(ConfigOrjsonMixin):
+            """Config for aliasing."""
+
             allow_population_by_field_name = True
 
     films_count: int
@@ -36,27 +37,38 @@ class ResponseFilms(BaseModel):
     prev_page: int | None = None
     films: list[_ResponseFilm] = Field(default_factory=list)
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.total_pages = ceil(self.films_count / self.page_size)
 
-        self.next_page = self.page_number + \
-            1 if self.page_number < self.total_pages else None
+        self.next_page = (
+            self.page_number + 1
+            if self.page_number < self.total_pages
+            else None
+        )
         self.prev_page = self.page_number - 1 if self.page_number > 1 else None
 
     class Config(ConfigOrjsonMixin):
+        """Config for aliasing."""
+
         allow_population_by_field_name = True
 
 
 async def pagination_parameters(
-    page_size: Annotated[int, Query(
-        description="The size of the results to retrieve per page",
-        ge=1,
-    )] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
-    page_number: Annotated[int, Query(
-        description="The page number to retrieve",
-        ge=1,
-    )] = 1,
+    page_size: Annotated[
+        int,
+        Query(
+            description="The size of the results to retrieve per page",
+            ge=1,
+        ),
+    ] = es_conf.DEFAULT_ELASTIC_QUERY_SIZE,
+    page_number: Annotated[
+        int,
+        Query(
+            description="The page number to retrieve",
+            ge=1,
+        ),
+    ] = 1,
 ):
     """Define common pagination parameters."""
     return {
@@ -70,7 +82,7 @@ PaginationParameters = Annotated[dict, Depends(pagination_parameters)]
 
 @router.get("/search", response_model=ResponseFilms)
 async def films_search(
-    pagination_parameters: PaginationParameters,
+    pagination_params: PaginationParameters,
     query: Annotated[str, Query(description="Search by query")],
     film_service: FilmService = Depends(get_film_service),
 ) -> ResponseFilms:
@@ -88,11 +100,17 @@ async def films_search(
     A dictionary containing the paginated list of `Film` objects,
     along with the total number of films and pagination details.
     """
-    page_number = pagination_parameters["page_number"]
-    page_size = pagination_parameters["page_size"]
+    page_number = pagination_params["page_number"]
+    page_size = pagination_params["page_size"]
 
-    search_fields = ['title', 'description', 'director',
-                     'actors_names', 'writers_names', 'genre']
+    search_fields = [
+        "title",
+        "description",
+        "director",
+        "actors_names",
+        "writers_names",
+        "genre",
+    ]
 
     films_count, films = await film_service.get_films_list(
         page_size=page_size,
@@ -109,17 +127,25 @@ async def films_search(
     )
 
 
-@router.get("/",
-            response_model=ResponseFilms,
-            response_model_exclude_unset=True)
+@router.get(
+    "/",
+    response_model=ResponseFilms,
+    response_model_exclude_unset=True,
+)
 async def films_list(
-    pagination_parameters: PaginationParameters,
-    sort: Annotated[str | None, Query(
-        description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`",
-    )] = None,
-    genre: Annotated[list[str] | None, Query(
-        description="Filter by genre, e.g. `Action`",
-    )] = None,
+    pagination_params: PaginationParameters,
+    sort: Annotated[
+        str | None,
+        Query(
+            description="Sort by rating e.g. `+imdb_rating` or `-imdb_rating`",
+        ),
+    ] = None,
+    genre: Annotated[
+        list[str] | None,
+        Query(
+            description="Filter by genre, e.g. `Action`",
+        ),
+    ] = None,
     film_service: FilmService = Depends(get_film_service),
 ) -> ResponseFilms:
     """
@@ -138,30 +164,38 @@ async def films_list(
     A dictionary containing the paginated list of `Film` objects,
     along with the total number of films and pagination details.
     """
-    page_number = pagination_parameters["page_number"]
-    page_size = pagination_parameters["page_size"]
+    page_number = pagination_params["page_number"]
+    page_size = pagination_params["page_size"]
+
+    genres = None
+    sort_field = None
 
     if genre:
-        genre = {"genre": genre}
-
+        genres = {"genre": genre}
     if sort:
-        order = "asc" if sort[0] == "+" else "desc" if sort[0] == "-" else None
-        sort = {
+        order = None
+        if sort[0] == "+":
+            order = "asc"
+        elif sort[0] == "-":
+            order = "desc"
+
+        sort_field = {
             sort[1:]: {"order": order},
         }
 
     films_count, films = await film_service.get_films_list(
         page_size=page_size,
         page_number=page_number,
-        sort_field=sort,
-        filter_field=genre,
+        sort_field=sort_field,
+        filter_field=genres,
     )
 
     films = (
         Film(
-            id=film.id,
+            uuid=film.id,
             title=film.title,
             imdb_rating=film.imdb_rating,
+            description=None,
         )
         for film in films
     )
@@ -174,9 +208,11 @@ async def films_list(
     )
 
 
-@router.get("/{film_id}/",
-            response_model=Film,
-            response_model_exclude_unset=True)
+@router.get(
+    "/{film_id}/",
+    response_model=Film,
+    response_model_exclude_unset=True,
+)
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
     film_service: FilmService = Depends(get_film_service),
@@ -189,15 +225,20 @@ async def film_details(
 
     ### Returns:
     The film with the details.
+
+    ### Raises:
+        HTTPException: If film not found.
     """
     film = await film_service.get_by_id(film_id)
 
     if not film:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND,
-                            detail=FILM_NOT_FOUND)
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail=FILM_NOT_FOUND,
+        )
 
     return Film(
-        id=film.id,
+        uuid=film.id,
         title=film.title,
         imdb_rating=film.imdb_rating,
         description=film.description,
