@@ -36,8 +36,8 @@ class ResponseFilms(BaseModel):
     prev_page: int | None = None
     films: list[_ResponseFilm] = Field(default_factory=list)
 
-    def __init__(self, **data):
-        super().__init__(**data)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.total_pages = ceil(self.films_count / self.page_size)
 
         self.next_page = (
