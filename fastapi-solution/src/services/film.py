@@ -31,11 +31,11 @@ class FilmService:
         self,
         page_size: int,
         page_number: int,
-        sort_field: dict[str, dict] | None = None,
-        filter_field: dict[str, str] | None = None,
+        sort_field: dict[str, dict[str, str]] | None = None,
+        filter_field: dict[str, list[str]] | None = None,
         search_query: str | None = None,
         search_fields: list[str] | None = None,
-    ) -> tuple[int, Iterator[Film]]:
+    ) -> tuple[int, list[Film]]:
         """
         Fetch films from Redis cache or Elasticsearch index.
 
@@ -63,15 +63,12 @@ class FilmService:
         )
         logger.info("Search films in cache by key <{0}>".format(key))
 
-        # Нестыковка типов
         films_count, films = await self._films_list_from_cache(key)
 
         if page_number:
             from_index = page_size * (page_number - 1)
 
         if not films:
-            # "Iterator[Any]", variable "Optional[List[Any]]"
-            # и ниже from_index может отсутсвовать вовсе, нужно учесть
             films_count, films = await self._get_films_list_from_elastic(
                 query_size=page_size,
                 from_index=from_index,
@@ -81,10 +78,8 @@ class FilmService:
                 search_fields=search_fields,
             )
 
-        # Нестыковка типов
         await self._put_films_to_cache(key, films_count, films)
 
-        # Нестыковка типов
         return films_count, films
 
     async def get_by_id(self, film_id: UUID) -> Film | None:
@@ -109,11 +104,11 @@ class FilmService:
         self,
         query_size: int,
         from_index: int = 0,
-        sort_field: dict[str, dict] | None = None,
-        filter_field: dict[str, str] | None = None,
+        sort_field: dict[str, dict[str, str]] | None = None,
+        filter_field: dict[str, list[str]] | None = None,
         search_query: str | None = None,
         search_fields: list[str] | None = None,
-    ) -> tuple[int, Iterator[Film]]:
+    ) -> tuple[int, list[Film]]:
         """Fetch films from elasticsearch.
 
         If the requested query size is larger than
@@ -151,10 +146,6 @@ class FilmService:
             "from": from_index or 0,
         }
 
-        # mypy не нравится эта часть, хоть она и правильная
-        # попробуй пересмотреть этот вариант или оставь type ignore
-        # с ним ошибка не высвечивается
-        # Value of type "object" is not indexable
         if filter_field:
             query["query"]["bool"]["filter"] = {  # type: ignore
                 "terms": filter_field,
@@ -189,7 +180,11 @@ class FilmService:
             scroll=scroll,
         )
 
-        films_count = response["hits"]["total"]["value"]
+        try:
+            films_count = int(response["hits"]["total"]["value"])
+        except ValueError:
+            films_count = 0
+
         hits = response["hits"]["hits"]
 
         if paginate_query_request:
@@ -207,8 +202,6 @@ class FilmService:
         else:
             films = [Film(**hit["_source"]) for hit in hits]
 
-        # films_count неизвестного типа
-        # у films нестыковка типов
         return (films_count, films)
 
     async def _get_film_from_elastic(self, film_id: UUID) -> Film | None:
@@ -237,7 +230,7 @@ class FilmService:
         return film
 
     async def _films_list_from_cache(
-        self, args_key: list[str]
+        self, args_key: str
     ) -> tuple[int | None, list[Film] | None]:
         """
         Fetch films from cache
@@ -277,7 +270,7 @@ class FilmService:
         self,
         args_key: str,
         films_count: int,
-        films: Iterator[Film],
+        films: list[Film],
     ) -> None:
         """Put films to cache.
 

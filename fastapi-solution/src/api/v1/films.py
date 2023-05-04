@@ -162,28 +162,22 @@ async def films_list(
     page_number = pagination_params["page_number"]
     page_size = pagination_params["page_size"]
 
-    # кажется не очень хорошей практикой изменять
-    # переменные из параметров, как минимум типы
-    # уже не сходятся
     if genre:
-        genre = {"genre": genre}
+        genres = {"genre": genre}
 
     if sort:
         order = "asc" if sort[0] == "+" else "desc" if sort[0] == "-" else None
-        # тут так же
-        sort = {
+        sort_field = {
             sort[1:]: {"order": order},
         }
 
-    # ниже не сходятся типы sort и genre
     films_count, films = await film_service.get_films_list(
         page_size=page_size,
         page_number=page_number,
-        sort_field=sort,
-        filter_field=genre,
+        sort_field=sort_field,
+        filter_field=genres,
     )
 
-    # ниже не сходятся типы
     films = (
         Film(
             id=film.id,
@@ -224,7 +218,6 @@ async def film_details(
             status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND,
         )
 
-    # ниже не сходятся типы
     return Film(
         id=film.id,
         title=film.title,
