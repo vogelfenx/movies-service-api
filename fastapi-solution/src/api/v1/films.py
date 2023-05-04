@@ -125,7 +125,7 @@ async def films_search(
 
 
 @router.get(
-    "/", response_model=ResponseFilms, response_model_exclude_unset=True
+    "/", response_model=ResponseFilms, response_model_exclude_unset=True,
 )
 async def films_list(
     pagination_params: PaginationParameters,
@@ -202,7 +202,7 @@ async def films_list(
 
 
 @router.get(
-    "/{film_id}/", response_model=Film, response_model_exclude_unset=True
+    "/{film_id}/", response_model=Film, response_model_exclude_unset=True,
 )
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
@@ -221,7 +221,7 @@ async def film_details(
 
     if not film:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND
+            status_code=HTTPStatus.NOT_FOUND, detail=FILM_NOT_FOUND,
         )
 
     # ниже не сходятся типы
