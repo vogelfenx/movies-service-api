@@ -107,7 +107,7 @@ class PersonService:
 
     async def _persons_by_key_from_cache(
         self,
-        key: str | bytes,
+        key: str,
     ) -> list[Person] | None:
         """Return persons by name from cache."""
         # Получение данных о персоне из кеша по ключу, используя команду hget
@@ -122,7 +122,7 @@ class PersonService:
 
     async def _put_person_by_key_to_cache(
         self,
-        key: str | bytes,
+        key: str,
         persons: list[Person],
     ):
         """Save a person data to cache (uses redis hset)."""
