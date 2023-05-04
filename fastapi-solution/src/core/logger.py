@@ -2,9 +2,6 @@ import logging
 import logging.config
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-LOG_DEFAULT_HANDLERS = [
-    "console",
-]
 
 # В логгере настраивается логгирование uvicorn-сервера.
 # Про логирование в Python можно прочитать в документации
@@ -23,7 +20,8 @@ LOGGING = {
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": "%(levelprefix)s %(client_addr)s - '%(request_line)s' %(status_code)s",
+            "fmt": "%(levelprefix)s %(client_addr)s -\
+                  '%(request_line)s' %(status_code)s",
         },
     },
     "handlers": {
@@ -45,7 +43,9 @@ LOGGING = {
     },
     "loggers": {
         "": {
-            "handlers": LOG_DEFAULT_HANDLERS,
+            "handlers": [
+                "console",
+            ],
             "level": "INFO",
         },
         "uvicorn.error": {
@@ -60,7 +60,9 @@ LOGGING = {
     "root": {
         "level": "INFO",
         "formatter": "verbose",
-        "handlers": LOG_DEFAULT_HANDLERS,
+        "handlers": [
+            "console",
+        ],
     },
 }
 
@@ -68,5 +70,5 @@ logging.config.dictConfig(LOGGING)
 
 
 def get_logger(name: str):
-    logger = logging.getLogger(name)
-    return logger
+    """Return default logger."""
+    return logging.getLogger(name)
