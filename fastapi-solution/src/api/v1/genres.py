@@ -2,6 +2,7 @@ from http import HTTPStatus
 from uuid import UUID
 
 from core.config import fast_api_conf
+from core.messages import GENRE_NOT_FOUND
 from fastapi import APIRouter, Depends, HTTPException, Path
 from pydantic import BaseModel, Field
 from services.genre import GenreService, get_genres_service
@@ -34,7 +35,7 @@ async def genres(
     if not genres_list:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Genres not found",
+            detail=GENRE_NOT_FOUND,
         )
 
     return [Genre(uuid=x.id, name=x.name) for x in genres_list]
@@ -58,7 +59,7 @@ async def genre(
     if not genre_model:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Genre id=<{0}> not found".format(genre_id),
+            detail=GENRE_NOT_FOUND,
         )
 
     return Genre.parse_obj(genre_model)

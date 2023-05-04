@@ -2,7 +2,8 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from core.config import fast_api_conf, es_conf
+from core.config import es_conf, fast_api_conf
+from core.messages import FILM_NOT_FOUND, PERSON_NOT_FOUND
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models.common import UUIDMixin
 from models.film import Film as _Film
@@ -123,7 +124,7 @@ async def person_search(
     if not persons:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Person not found",
+            detail=PERSON_NOT_FOUND,
         )
 
     for person in persons:
@@ -173,14 +174,14 @@ async def person_films(
     if not person:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Person not found",
+            detail=PERSON_NOT_FOUND,
         )
 
     films = await person_service.get_person_films(person_id, person.name)
     if not films:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Films not found",
+            detail=FILM_NOT_FOUND,
         )
 
     return [Film.parse_obj(x) for x in films]
@@ -204,7 +205,7 @@ async def person(
     if not person_model:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail="Person not found",
+            detail=PERSON_NOT_FOUND,
         )
 
     films = await person_service.get_person_films(person_id, person_model.name)

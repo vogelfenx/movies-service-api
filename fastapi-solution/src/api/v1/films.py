@@ -3,8 +3,8 @@ from math import ceil
 from typing import Annotated
 from uuid import UUID
 
-from api.messages import FILM_NOT_FOUND
 from core.config import es_conf
+from core.messages import FILM_NOT_FOUND
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from models import Film
 from models.common import ConfigOrjsonMixin
