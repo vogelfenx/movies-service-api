@@ -7,18 +7,26 @@ services:
       context: fastapi-solution
     ports:
       - "8000:8000"
-
+      - "5678:5678"
     env_file:
       fastapi-solution/.env
 
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 10s
+
     depends_on:
       - redis
-    
-    entrypoint: [
-      "sh",
-      "-c",
-      "uvicorn src.main:app  --host 0.0.0.0 --port 8000",
-    ]
+    entrypoint:
+      [
+        "sh",
+        "-c",
+        "pip install debugpy && python -m debugpy --wait-for-client --listen 0.0.0.0:5678 -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
+      ]
+
 
   redis:
     container_name: redis_cache

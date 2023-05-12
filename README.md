@@ -15,6 +15,12 @@
 1. Потребуется репозиторий, созданный в S3 (пример запуска описан в README.md проекта).
 ```https://github.com/IggiShal/new_admin_panel_sprint_3.git```
 
+2. Настроить виртуальную среду, например:
+```python.exe -m venv .venv```
+
+3. Перейти в виртуальную среду, например:
+``` & ./fastapi-solution/.venv/Scripts/Activate.ps1```
+
 ## Запуск проекта
 1. Перейти в директорию ./fastapi-solutions
 
@@ -46,3 +52,41 @@
 
 4. В Postman 
      * ```fastapi-solution\tests\Async_API.postman_collection.json```
+
+## Запуск тестов
+1. Запустить докер в тестовом режиме (нужен в первый раз, далее можно запускать при наличии запущенного):
+```docker-compose -f docker-compose.test.yaml up --build```
+
+2. Выполнить тест:
+```pytest . --docker-compose=docker-compose.test.yaml --docker-compose-no-build --use-running-containers -v```
+
+
+## Запуск в VSCode в debug режиме
+1. Настройка запуска в файле .vscode\launch.json
+```
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Remote Attach",
+            "type": "python",
+            "request": "attach",
+            "port": 5678,
+            "host": "localhost",
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/fastapi-solution",
+                    "remoteRoot": "/opt/app"
+                }
+            ],
+        },
+    ]
+}
+```
+
+2. Запустить докер в дебаг режиме:
+```docker-compose -f docker-compose.debug.yaml up --build```
+
+3. Перейти в меню дебага Ctrl-Shift-F5.
+4. Выбрать ранее добавленный "Python: Remote Attach" и запустить.
+5. Для проверки можно поставить брейкпоинт, например, в genres entrypoint и выполнить запрос на http://127.0.0.1:8000/api/openapi.
