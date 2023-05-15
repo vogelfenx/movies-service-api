@@ -58,8 +58,9 @@
 ```docker-compose -f docker-compose.test.yaml up --build```
 
 2. Выполнить тест:
-```pytest . --docker-compose=docker-compose.test.yaml --docker-compose-no-build --use-running-containers -v```
-
+```
+pytest fastapi-solution/tests --docker-compose=docker-compose.test.yaml --docker-compose-no-build --use-running-containers -v
+```
 
 ## Запуск в VSCode в debug режиме
 1. Настройка запуска в файле .vscode\launch.json
