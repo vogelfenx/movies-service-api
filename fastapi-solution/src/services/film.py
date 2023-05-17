@@ -2,13 +2,14 @@ from functools import lru_cache
 from uuid import UUID
 
 import orjson
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
 
+from core.search import Search
 from core.config import es_conf
 from core.logger import get_logger
-from db.elastic import get_elastic
+from db.search import get_search
 from db.redis import get_redis
 from models.film import Film
 
@@ -16,15 +17,16 @@ from .common import prepare_key_by_args
 
 logger = get_logger(__name__)
 
+
 FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class FilmService:
     """FilmService class."""
 
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
+    def __init__(self, redis: Redis, search: Search):
         self.redis = redis
-        self.elastic = elastic
+        self.search = search
 
     async def get_films_list(
         self,
@@ -87,7 +89,7 @@ class FilmService:
         """
         film = await self._film_from_cache(str(film_id))
         if not film:
-            film = await self._get_film_from_elastic(film_id)
+            film = await self._get_film_from_search(film_id)
             if not film:
                 return None
             await self._put_film_to_cache(film)
@@ -162,9 +164,10 @@ class FilmService:
         if paginate_query_request:
             scroll = "5m"
 
-        response = await self.elastic.search(
+        # TODO: scroll
+        response = await self.search.get(
             index="movies",
-            body=query,  # type: ignore
+            query=query,
             scroll=scroll,
         )
 
@@ -181,7 +184,7 @@ class FilmService:
             while hits:
                 films.extend([Film(**hit["_source"]) for hit in hits])
 
-                response = await self.elastic.scroll(
+                response = await self.search.scroll(
                     scroll_id=scroll_id,
                     scroll=scroll,
                 )
@@ -192,8 +195,8 @@ class FilmService:
 
         return (films_count, films)
 
-    async def _get_film_from_elastic(self, film_id: UUID) -> Film | None:
-        """Fetch a film from elasticsearch by ID.
+    async def _get_film_from_search(self, film_id: UUID) -> Film | None:
+        """Fetch a film from Search by ID.
 
         Args:
             film_id: The ID of the film to retrieve.
@@ -202,7 +205,7 @@ class FilmService:
             The requested film.
         """
         try:
-            doc = await self.elastic.get(index="movies", id=str(film_id))
+            doc = await self.search.get(index="movies", id=str(film_id))
         except NotFoundError:
             return None
         return Film(**doc["_source"])
@@ -218,7 +221,6 @@ class FilmService:
     async def _films_list_from_cache(
         self,
         args_key: str,
-
     ) -> tuple[int | None, list[Film] | None]:
         """
         Fetch films from cache.
@@ -276,7 +278,7 @@ class FilmService:
 @lru_cache()
 def get_film_service(
     redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    search: Search = Depends(get_search),
 ) -> FilmService:
     """Use for set the dependency in api route."""
-    return FilmService(redis, elastic)
+    return FilmService(redis, search)

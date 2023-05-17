@@ -2,9 +2,11 @@ from functools import lru_cache
 
 import orjson
 from core.logger import get_logger
-from db.elastic import get_elastic
+from core.search import Search
+from db.search import get_search
+from db.search import get_search
 from db.redis import get_redis
-from elasticsearch import AsyncElasticsearch, NotFoundError
+from elasticsearch import NotFoundError
 from elasticsearch.helpers import async_scan
 from fastapi import Depends
 from models.film import Film
@@ -26,10 +28,10 @@ class PersonService:
     def __init__(
         self,
         redis: Redis,
-        elastic: AsyncElasticsearch,
+        search: Search,
     ):
         self.redis = redis
-        self.elastic = elastic
+        self.search = search
 
     # get_by_id возвращает объект персоны.
     # Он опционален, так как персона может отсутствовать в базе
@@ -40,9 +42,12 @@ class PersonService:
         """Return a person by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
         person = await self._person_from_cache(person_id)
+        print("as")
+        print("as")
+        print("as")
         if not person:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
-            person = await self._get_person_from_elastic(person_id)
+            person = await self._get_person_from_search(person_id)
             if not person:
                 # Если он отсутствует в ES, то персоны вообще нет в базе
                 return None
@@ -69,7 +74,7 @@ class PersonService:
         persons = await self._persons_by_key_from_cache(key)
         if not persons:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
-            persons = await self._get_persons_by_name_from_elastic(
+            persons = await self._get_persons_by_name_from_search(
                 name=name,
                 page_size=page_size,
                 page_number=page_number,
@@ -85,7 +90,7 @@ class PersonService:
 
         return persons
 
-    async def _get_persons_by_name_from_elastic(
+    async def _get_persons_by_name_from_search(
         self,
         name: str,
         page_size: int,
@@ -94,7 +99,7 @@ class PersonService:
         """Return persons by name from Elasticsearch."""
         query = person_search_query(name=name)
 
-        docs = await self.elastic.search(
+        docs = await self.search.search(
             index="persons",
             query=query,
             size=page_size,
@@ -136,13 +141,13 @@ class PersonService:
         )
         await self.redis.expire("person_key", PERSON_CACHE_EXPIRE_IN_SECONDS)
 
-    async def _get_person_from_elastic(
+    async def _get_person_from_search(
         self,
         person_id: str,
     ) -> Person | None:
-        """Get a person from elastic."""
+        """Get a person from search db."""
         try:
-            doc = await self.elastic.get(
+            doc = await self.search.get(
                 index="persons",
                 id=person_id,
             )
@@ -225,7 +230,7 @@ class PersonService:
         )
 
         async for doc in async_scan(
-            client=self.elastic,
+            client=self.search,
             index="movies",
             query=query,
         ):
@@ -294,7 +299,7 @@ class PersonService:
         )
 
         async for doc in async_scan(
-            client=self.elastic,
+            client=self.search,
             index="movies",
             query=query,
         ):
@@ -337,7 +342,7 @@ class PersonService:
 @lru_cache()
 def get_person_service(
     redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    search: Search = Depends(get_search),
 ) -> PersonService:
     """Use for set the dependency in api route."""
-    return PersonService(redis, elastic)
+    return PersonService(redis, search)

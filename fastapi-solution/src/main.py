@@ -1,6 +1,7 @@
 from api.v1 import films, genres, persons
 from core.config import fast_api_conf, es_conf, redis_conf
-from db import elastic, redis
+from core.search import Search
+from db import search, redis
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
@@ -18,7 +19,7 @@ app = FastAPI(
 async def startup():
     """Start dependency."""
     redis.redis = Redis(host=redis_conf.REDIS_HOST, port=redis_conf.REDIS_PORT)
-    elastic.es = AsyncElasticsearch(
+    search.db = Search(
         hosts=[
             "http://{host}:{port}".format(
                 host=es_conf.ELASTIC_HOST,
@@ -33,8 +34,9 @@ async def shutdown():
     """Stop dependency."""
     if redis.redis:
         await redis.redis.close()
-    if elastic.es:
-        await elastic.es.close()
+
+    if search.db:
+        await search.db.close()
 
 
 # Теги указываем для удобства навигации по документации

@@ -1,33 +1,37 @@
 from functools import lru_cache
 
 import orjson
-from db.elastic import get_elastic
+from core.search import AbstractSearch
+from db.search import get_search
 from db.redis import get_redis
-from elasticsearch import AsyncElasticsearch, NotFoundError
-from elasticsearch.helpers import async_scan
+from elasticsearch import NotFoundError
 from fastapi import Depends
 from models.genre import Genre
 from redis.asyncio import Redis
 
+# TODO: Replace to settings
 GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
 
 
 class GenreService:
     """Contain a merhods for fetching data from ES or Redis."""
 
-    def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
+    def __init__(self, redis: Redis, search: AbstractSearch):
         self.redis = redis
-        self.elastic = elastic
+        self.search = search
 
     # Возвращает список всех жанров.
     # Он опционален, так как жанр может отсутствовать в базе
     async def get_all(self) -> list[Genre] | None:
         """Return all genres."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        genres = await self._genres_from_cache()
+        # TODO: return cache back
+        # genres = await self._genres_from_cache()
+
+        genres = None
         if not genres:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
-            genres = await self._get_genres_from_elastic()
+            genres = await self._get_genres_from_search()
             if not genres:
                 # Если список отсутствует в Elasticsearch, значит ошибка
                 return None
@@ -36,12 +40,12 @@ class GenreService:
 
         return genres
 
-    async def _get_genres_from_elastic(self) -> list[Genre] | None:
+    async def _get_genres_from_search(self) -> list[Genre] | None:
         """Return all genres from elastic."""
         docs = []
-
-        async for doc in async_scan(client=self.elastic, index="genres"):
-            docs.append(doc)
+        # print(1)
+        async for hit in self.search.scan(index="genres"):
+            docs.append(hit)
 
         return [Genre.parse_obj(x["_source"]) for x in docs]
 
@@ -59,7 +63,7 @@ class GenreService:
         return [Genre.parse_obj(x) for x in genres_json]
 
     async def _put_genres_to_cache(self, genres: list[Genre]):
-        """Save all genres from elastic."""
+        """Save all genres from cache."""
         # Сохраняем данные о жанрах, используя команду set
         # Выставляем время жизни кеша — 10 минут
         # https://redis.io/commands/set/
@@ -78,7 +82,7 @@ class GenreService:
         genre = await self._genre_from_cache(genre_id)
         if not genre:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
-            genre = await self._get_genre_from_elastic(genre_id)
+            genre = await self._get_genre_from_search(genre_id)
             if not genre:
                 # Если список отсутствует в Elasticsearch, значит ошибка
                 return None
@@ -87,10 +91,10 @@ class GenreService:
 
         return genre
 
-    async def _get_genre_from_elastic(self, genre_id: str) -> Genre | None:
+    async def _get_genre_from_search(self, genre_id: str) -> Genre | None:
         """Return a genre from elastic by id."""
         try:
-            doc = await self.elastic.get(index="genres", id=genre_id)
+            doc = self.search.get(index="genres", id=genre_id)
         except NotFoundError:
             return None
 
@@ -117,7 +121,7 @@ class GenreService:
 @lru_cache()
 def get_genres_service(
     redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    search: AbstractSearch = Depends(get_search),
 ) -> GenreService:
     """Use for set the dependency in api route."""
-    return GenreService(redis, elastic)
+    return GenreService(redis, search)
