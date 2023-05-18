@@ -10,7 +10,7 @@ from fastapi import Depends
 from models.film import Film
 from models.person import Person
 from redis.asyncio import Redis
-from .queries import QueryPersonId, QueryPersonName
+from .queries import QueryPersonByIdAndName, QueryPersonByName
 
 PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 ES_BODY_SEARCH = "_source"
@@ -90,7 +90,7 @@ class PersonService:
         page_number: int,
     ) -> list[Person] | None:
         """Return persons by name from Elasticsearch."""
-        query = person_search_query(name=name)
+        query = QueryPersonByName(name=name)
 
         _hits = await self.search.search(
             index="persons",
@@ -218,11 +218,10 @@ class PersonService:
         person_name: str,
     ) -> list[Film] | None:
         """Get a person films data from elasticsearch."""
-        query = {}
-        # query = person_films_query(
-        #     person_id=person_id,
-        #     name=person_name,
-        # )
+        query = QueryPersonByIdAndName(
+            id=person_id,
+            name=person_name,
+        )
 
         hits = []
         _hits = await self.search.scan(

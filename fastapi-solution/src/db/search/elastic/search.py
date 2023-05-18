@@ -1,10 +1,9 @@
 from typing import Any, Iterator
-from db.search.abc.query import AbstractQuery
 
+from db.search.abc.query import AbstractQuery
 from db.search.abc.search import AbstractSearch
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, NotFoundError
 from elasticsearch.helpers import async_scan
-from elasticsearch import NotFoundError
 
 
 class Search(AbstractSearch):
@@ -71,11 +70,10 @@ class Search(AbstractSearch):
         _query = None
         if query:
             _query = query.get_query()
-
         return async_scan(
             client=self.client,
             index=index,
-            query=_query,
+            query=query,
             scroll=scroll,
         )
 
@@ -88,7 +86,7 @@ class Search(AbstractSearch):
     ):
         _query = None
         if query:
-            _query = query.get_query()
+            _query = query.get_query().get("query", None)
 
         hits = await self.client.search(
             index=index,
@@ -96,8 +94,17 @@ class Search(AbstractSearch):
             size=size,
             from_=from_,
         )
-        for hit in hits:
-            yield hit
+        return hits
+
+    async def scroll(
+        self,
+        scroll_id: str,
+        scroll: str | None = None,
+    ):
+        return await self.client.scroll(
+            scroll_id=scroll_id,
+            scroll=scroll,
+        )
 
     async def save_mapping(
         self,

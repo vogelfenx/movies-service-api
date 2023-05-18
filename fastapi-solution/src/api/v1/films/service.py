@@ -5,6 +5,7 @@ import orjson
 from elasticsearch import NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
+from api.v1.films.queries import QueryFilm
 
 from db.search.abc.search import AbstractSearch
 from core.config import es_conf
@@ -130,49 +131,26 @@ class FilmService:
             paginate_query_request = True
             query_size = max_query_size
 
-        query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "match_all": {},
-                    },
-                },
-            },
-            "size": query_size,
-            "from": from_index or 0,
-        }
+        scroll = None
+        if paginate_query_request:
+            scroll = "5m"
 
-        if filter_field:
-            query["query"]["bool"]["filter"] = {  # type: ignore
-                "terms": filter_field,
-            }
+        query = QueryFilm(
+            sort_field=sort_field,
+            filter_field=filter_field,
+            search_query=search_query,
+            search_fields=search_fields,
+        )
 
-        if sort_field:
-            query["sort"] = [sort_field]
-
-        if search_query and search_fields:
-            query["query"]["bool"]["must"] = {  # type: ignore
-                "multi_match": {
-                    "query": search_query,
-                    "fields": search_fields,
-                    "fuzziness": "AUTO",
-                    "operator": "and",
-                },
-            }
-
-        hits = self.search.search(
+        response = await self.search.search(
             index="movies",
             query=query,
             size=query_size,
             from_=from_index,
         )
 
-        _hits = []
-        async for hit in hits:
-            _hits.append(hit)
-
         try:
-            films_count = int(hits["hits"]["total"]["value"])
+            films_count = int(response["hits"]["total"]["value"])
         except ValueError:
             films_count = 0
 

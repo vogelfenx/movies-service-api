@@ -65,6 +65,20 @@ class AbstractSearch(AbstractClient):
         Using pagination.
 
         Returns:
+            Should return full response.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    async def scroll(
+        self,
+        scroll_id: str,
+        scroll: str | None = None,
+    ):
+        """
+        Scroll throw ObjectApiResponse.
+
+        Returns:
             Should yield every hit.
         """
         raise NotImplementedError

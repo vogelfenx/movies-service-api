@@ -4,7 +4,6 @@ import orjson
 from db.search.abc.search import AbstractSearch
 from db.search.dependency import get_search
 from db.cache.redis.redis import get_redis
-from elasticsearch import NotFoundError
 from fastapi import Depends
 from models.genre import Genre
 from redis.asyncio import Redis
@@ -95,12 +94,12 @@ class GenreService:
 
     async def _get_genre_from_search(self, genre_id: str) -> Genre | None:
         """Return a genre from elastic by id."""
-        try:
-            doc = await self.search.get(
-                index="genres",
-                id=genre_id,
-            )
-        except NotFoundError:
+
+        doc = await self.search.get(
+            index="genres",
+            id=genre_id,
+        )
+        if not doc:
             return None
 
         return Genre.parse_obj(doc)

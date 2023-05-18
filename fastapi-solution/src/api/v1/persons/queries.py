@@ -1,7 +1,7 @@
 from db.search.abc.query import SelectQuery
 
 
-class QueryPersonId(SelectQuery):
+class QueryPersonByIdAndName(SelectQuery):
     """Create a query by id and name of person."""
 
     def __init__(
@@ -51,16 +51,14 @@ class QueryPersonId(SelectQuery):
         }
 
 
-class QueryPersonName(SelectQuery):
+class QueryPersonByName(SelectQuery):
     """Create a query for ES which would search by name."""
 
     def __init__(
         self,
-        id: str,
         name: str,
         fields: list[str] | None = None,
     ) -> None:
-        self.id = id
         self.name = name
         self._fields = fields
         super().__init__()
