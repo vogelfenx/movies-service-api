@@ -1,9 +1,9 @@
 from functools import lru_cache
 
 import orjson
-from core.search import AbstractSearch
-from db.search import get_search
-from db.redis import get_redis
+from db.search.abc.search import AbstractSearch
+from db.search.dependency import get_search
+from db.cache.redis.redis import get_redis
 from elasticsearch import NotFoundError
 from fastapi import Depends
 from models.genre import Genre
@@ -14,7 +14,7 @@ GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
 
 
 class GenreService:
-    """Contain a merhods for fetching data from ES or Redis."""
+    """Contain a methods for fetching data from ES or Redis."""
 
     def __init__(self, redis: Redis, search: AbstractSearch):
         self.redis = redis
@@ -42,12 +42,12 @@ class GenreService:
 
     async def _get_genres_from_search(self) -> list[Genre] | None:
         """Return all genres from elastic."""
-        docs = []
-        # print(1)
-        async for hit in self.search.scan(index="genres"):
-            docs.append(hit)
+        hits = []
+        _hits = await self.search.scan(index="genres")
+        async for hit in _hits:
+            hits.append(hit)
 
-        return [Genre.parse_obj(x["_source"]) for x in docs]
+        return [Genre.parse_obj(x["_source"]) for x in hits]
 
     async def _genres_from_cache(self) -> list[Genre] | None:
         """Return all genres from cache."""
@@ -79,7 +79,9 @@ class GenreService:
     async def get_by_id(self, genre_id: str) -> Genre | None:
         """Return a genre by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        genre = await self._genre_from_cache(genre_id)
+        # genre = await self._genre_from_cache(genre_id)
+        # TODO cache
+        genre = None
         if not genre:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             genre = await self._get_genre_from_search(genre_id)
@@ -94,11 +96,14 @@ class GenreService:
     async def _get_genre_from_search(self, genre_id: str) -> Genre | None:
         """Return a genre from elastic by id."""
         try:
-            doc = self.search.get(index="genres", id=genre_id)
+            doc = await self.search.get(
+                index="genres",
+                id=genre_id,
+            )
         except NotFoundError:
             return None
 
-        return Genre(**doc["_source"])
+        return Genre.parse_obj(doc)
 
     async def _genre_from_cache(self, genre_id: str) -> Genre | None:
         """Return a genre from cache by id."""

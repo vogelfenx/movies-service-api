@@ -6,14 +6,14 @@ from elasticsearch import NotFoundError
 from fastapi import Depends
 from redis.asyncio import Redis
 
-from core.search import Search
+from db.search.abc.search import AbstractSearch
 from core.config import es_conf
 from core.logger import get_logger
-from db.search import get_search
-from db.redis import get_redis
+from db.search.dependency import get_search
+from db.cache.redis.redis import get_redis
 from models.film import Film
 
-from .common import prepare_key_by_args
+from db.cache.redis.helpers import prepare_key_by_args
 
 logger = get_logger(__name__)
 
@@ -24,7 +24,7 @@ FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 class FilmService:
     """FilmService class."""
 
-    def __init__(self, redis: Redis, search: Search):
+    def __init__(self, redis: Redis, search: AbstractSearch):
         self.redis = redis
         self.search = search
 
@@ -65,7 +65,7 @@ class FilmService:
         from_index = page_size * (page_number - 1)
 
         if not films or not films_count:
-            films_count, films = await self._get_films_list_from_elastic(
+            films_count, films = await self._get_films_list_from_search(
                 query_size=page_size,
                 from_index=from_index,
                 sort_field=sort_field,
@@ -96,7 +96,7 @@ class FilmService:
 
         return film
 
-    async def _get_films_list_from_elastic(
+    async def _get_films_list_from_search(
         self,
         query_size: int,
         from_index: int = 0,
@@ -160,19 +160,19 @@ class FilmService:
                 },
             }
 
-        scroll = None
-        if paginate_query_request:
-            scroll = "5m"
-
-        # TODO: scroll
-        response = await self.search.get(
+        hits = self.search.search(
             index="movies",
             query=query,
-            scroll=scroll,
+            size=query_size,
+            from_=from_index,
         )
 
+        _hits = []
+        async for hit in hits:
+            _hits.append(hit)
+
         try:
-            films_count = int(response["hits"]["total"]["value"])
+            films_count = int(hits["hits"]["total"]["value"])
         except ValueError:
             films_count = 0
 
@@ -278,7 +278,7 @@ class FilmService:
 @lru_cache()
 def get_film_service(
     redis: Redis = Depends(get_redis),
-    search: Search = Depends(get_search),
+    search: AbstractSearch = Depends(get_search),
 ) -> FilmService:
     """Use for set the dependency in api route."""
     return FilmService(redis, search)

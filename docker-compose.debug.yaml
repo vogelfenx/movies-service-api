@@ -10,7 +10,8 @@ services:
       - "5678:5678"
     env_file:
       fastapi-solution/.env
-
+    volumes:
+      - ./fastapi-solution/src/:/opt/app/src
     deploy:
       restart_policy:
         condition: on-failure
@@ -24,9 +25,6 @@ services:
         "-c",
         "pip install debugpy && python -m debugpy --wait-for-client --listen 0.0.0.0:5678 -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
       ]
-    volumes:
-      - ./fastapi-solution/:/opt/app
-
 
   redis:
     container_name: redis_cache
