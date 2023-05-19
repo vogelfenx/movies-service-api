@@ -76,7 +76,7 @@ pytest fastapi-solution/tests --docker-compose=docker-compose.test.yaml --docker
     ]
 }
 ```
-### Отладка:
+### Отладка проекта:
 1. Запустить докер в отладочном режиме:
 ```sh
 docker-compose -f docker-compose.debug.yaml up --build
@@ -98,3 +98,26 @@ http://127.0.0.1:8008/api/v1/films/3d825f60-9fff-4dfe-b294-1a45fa1e115d
 ```sh
  fastapi-solution\tests\Async_API.postman_collection.json
  ```
+### Отладка тестов
+1. В среде VsCode понадобится добавить конфиг*:
+```json
+{
+    "python.testing.pytestArgs": [
+        "--rootdir", "fastapi-solution/tests",
+        "--docker-compose=docker-compose.test.yaml",
+        "--docker-compose-no-build",
+        "--use-running-containers",
+        "-v",
+    ],
+    "python.analysis.extraPaths": [
+        "fastapi-solution/src/",
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "79"
+    ]
+}
+```
+*- только python.testing относится к текущему пункту, осатльное прикопал для информации.
