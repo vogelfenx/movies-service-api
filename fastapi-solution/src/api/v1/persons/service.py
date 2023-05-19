@@ -145,7 +145,12 @@ class PersonService:
             index="persons",
             id=person_id,
         )
+        if not hit:
+            return None
 
+        type("hit=============================")
+
+        type(hit)
         return Person.parse_obj(hit)
 
     async def _person_from_cache(

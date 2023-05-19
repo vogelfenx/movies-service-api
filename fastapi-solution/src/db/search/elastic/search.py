@@ -73,7 +73,7 @@ class Search(AbstractSearch):
         return async_scan(
             client=self.client,
             index=index,
-            query=query,
+            query=_query,
             scroll=scroll,
         )
 

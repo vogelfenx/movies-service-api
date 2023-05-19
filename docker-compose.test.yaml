@@ -10,7 +10,8 @@ services:
 
     env_file:
       fastapi-solution/.env
-
+    volumes:
+      - ./fastapi-solution/src/:/opt/app/src
     depends_on:
       - redis
       - elasticsearch
@@ -18,7 +19,7 @@ services:
     entrypoint: [
       "sh",
       "-c",
-      "uvicorn src.main:app  --host 0.0.0.0 --port 8000",
+      "uvicorn src.main:app  --host 0.0.0.0 --port 8000 --reload",
     ]
 
   redis:
