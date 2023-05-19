@@ -182,9 +182,9 @@ class FilmService:
         Returns:
             The requested film.
         """
-        try:
-            doc = await self.search.get(index="movies", id=str(film_id))
-        except NotFoundError:
+
+        doc = await self.search.get(index="movies", id=str(film_id))
+        if not doc:
             return None
         return Film(**doc["_source"])
 

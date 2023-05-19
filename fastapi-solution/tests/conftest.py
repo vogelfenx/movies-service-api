@@ -17,6 +17,7 @@ pytest_plugins = ["docker_compose"]
 
 @pytest.fixture(scope="module")
 def docker_compose_file(pytestconfig):
+    """Config docker-compose for pytest."""
     return os.path.join(str(pytestconfig.rootdir), "docker-compose.test.yaml")
 
 
@@ -29,8 +30,7 @@ def main_api_url(module_scoped_container_getter):
     )
     request_session.mount("http://", HTTPAdapter(max_retries=retries))
 
-    service = module_scoped_container_getter.get(
-        "api").network_info[0]
+    service = module_scoped_container_getter.get("api").network_info[0]
 
     # api_url = f"http://{service.hostname}:{service.host_port}" # TODO: check it later
     api_url = f"http://localhost:{service.host_port}"
@@ -47,16 +47,18 @@ def fixture_event_loop():
 
 @pytest.fixture(scope="session")
 async def es_client(session_scoped_container_getter):
+    """Elasticsearch client fixture."""
     service = session_scoped_container_getter.get(
-        "elasticsearch").network_info[0]
+        "elasticsearch"
+    ).network_info[0]
 
     es_client = AsyncElasticsearch(
         hosts=[
             {
-                'host': 'localhost',
+                "host": "localhost",
                 # 'host': service.hostname, # TODO: check it later
-                'port': int(service.host_port),
-                'scheme': 'http'
+                "port": int(service.host_port),
+                "scheme": "http",
             }
         ],
     )
@@ -74,14 +76,14 @@ async def aiohttp_session():
 
 @pytest.fixture(scope="session")
 async def redis_client(session_scoped_container_getter):
-    service = session_scoped_container_getter.get(
-        "redis").network_info[0]
+    """Elasticsearch client fixture."""
+
+    service = session_scoped_container_getter.get("redis").network_info[0]
 
     # client = Redis(host=service.hostname, # # TODO: check it later
     #                port=service.host_port)
 
-    client = Redis(host='localhost',
-                   port='6379')
+    client = Redis(host="localhost", port=6379)
 
     yield client
     await client.flushall(True)
@@ -97,10 +99,13 @@ def es_write_data(es_client: AsyncElasticsearch):
             es_id_field,
         )
 
-        response = await es_client.bulk(operations=test_data_query, refresh=True)
+        response = await es_client.bulk(
+            operations=test_data_query,
+            refresh=True,
+        )
 
-        if response['errors']:
-            raise Exception('Ошибка записи данных в Elasticsearch')
+        if response["errors"]:
+            raise Exception("Ошибка записи данных в Elasticsearch")
 
     return inner
 
@@ -108,9 +113,11 @@ def es_write_data(es_client: AsyncElasticsearch):
 @pytest.fixture
 def es_clear_index(es_client: AsyncElasticsearch):
     async def inner(index: str):
-
         await es_client.delete_by_query(
-            index=index, body={"query": {"match_all": {}}}
+            index=index,
+            query={
+                "query": {"match_all": {}},
+            },
         )
 
     return inner
@@ -135,11 +142,11 @@ def create_es_index(es_client: AsyncElasticsearch):
 def make_get_request(aiohttp_session: ClientSession):
     async def inner(request_path, query_payload) -> tuple[dict, dict, int]:
         async with aiohttp_session.get(
-                request_path,
-                params=query_payload
+            request_path, params=query_payload
         ) as response:
             response_body = await response.json()
             response_headers = response.headers
             response_status = response.status
             return response_body, response_headers, response_status
+
     return inner
