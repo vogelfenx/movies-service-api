@@ -116,9 +116,7 @@ def es_clear_index(es_client: AsyncElasticsearch):
     async def inner(index: str):
         await es_client.delete_by_query(
             index=index,
-            query={
-                "query": {"match_all": {}},
-            },
+            query={"match_all": {}},
         )
 
     return inner

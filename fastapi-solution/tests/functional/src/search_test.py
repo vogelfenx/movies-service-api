@@ -37,7 +37,6 @@ async def test_search_without_cache(
         index_mappings=movies_settings.es_index_movies_mapping["mappings"],
     )
 
-    # FIXME ниже несоответствие типов в film_title
     generated_films = generate_films(
         num_films=30,
         film_title=query_data["query"],
