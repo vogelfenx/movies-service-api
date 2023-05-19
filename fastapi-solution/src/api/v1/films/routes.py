@@ -116,7 +116,7 @@ async def films_list(
             sort[1:]: {"order": order},
         }
 
-    films_count, films = await film_service.get_films_list(
+    films_count, _films = await film_service.get_films_list(
         page_size=page_size,
         page_number=page_number,
         sort_field=sort_field,
@@ -130,7 +130,7 @@ async def films_list(
             imdb_rating=film.imdb_rating,
             description=None,
         )
-        for film in films
+        for film in _films
     )
 
     return ResponseFilms(

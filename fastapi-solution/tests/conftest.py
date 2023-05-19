@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 
 import pytest
 import requests
@@ -140,7 +141,7 @@ def create_es_index(es_client: AsyncElasticsearch):
 
 @pytest.fixture
 def make_get_request(aiohttp_session: ClientSession):
-    async def inner(request_path, query_payload) -> tuple[dict, dict, int]:
+    async def inner(request_path, query_payload) -> tuple[dict, Any, int]:
         async with aiohttp_session.get(
             request_path, params=query_payload
         ) as response:
