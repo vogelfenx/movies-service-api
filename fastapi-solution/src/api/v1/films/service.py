@@ -183,7 +183,10 @@ class FilmService:
             The requested film.
         """
 
-        doc = await self.search.get(index="movies", id=str(film_id))
+        doc = await self.search.get(
+            index="movies",
+            id=str(film_id),
+        )
         if not doc:
             return None
         return Film(**doc["_source"])
@@ -209,7 +212,7 @@ class FilmService:
         Returns:
             Count of films list items, list of films objects
         """
-        films_data = await self.redis.hget("films", args_key)
+        films_data = await self.redis.hget(name="films", key=args_key)
 
         if not films_data:
             return None, None
@@ -225,12 +228,12 @@ class FilmService:
         Put film to cache.
 
         Args:
-            Film object
+            film: a Film object.
         """
         await self.redis.set(
-            str(film.id),
-            film.json(),
-            FILM_CACHE_EXPIRE_IN_SECONDS,
+            name=str(film.id),
+            value=film.json(),
+            ex=FILM_CACHE_EXPIRE_IN_SECONDS,
         )
 
     async def _put_films_to_cache(
@@ -249,8 +252,15 @@ class FilmService:
         films_data = {"count": films_count, "values": list(films)}
         json_data = orjson.dumps(films_data, default=dict)
 
-        await self.redis.hset("films", args_key, json_data)
-        await self.redis.expire("films", FILM_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.hset(
+            name="films",
+            key=args_key,
+            value=json_data,
+        )
+        await self.redis.expire(
+            name="films",
+            time=FILM_CACHE_EXPIRE_IN_SECONDS,
+        )
 
 
 @lru_cache()

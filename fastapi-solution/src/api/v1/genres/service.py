@@ -7,9 +7,7 @@ from db.cache.redis.redis import get_redis
 from fastapi import Depends
 from models.genre import Genre
 from redis.asyncio import Redis
-
-# TODO: Replace to settings
-GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 10  # 10 минут
+from core.config import redis_conf
 
 
 class GenreService:
@@ -24,8 +22,7 @@ class GenreService:
     async def get_all(self) -> list[Genre] | None:
         """Return all genres."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        # TODO: return cache back
-        # genres = await self._genres_from_cache()
+        genres = await self._genres_from_cache()
 
         genres = None
         if not genres:
@@ -70,7 +67,7 @@ class GenreService:
         await self.redis.set(
             name="genres",
             value=orjson.dumps(genres, default=dict),
-            ex=GENRE_CACHE_EXPIRE_IN_SECONDS,
+            ex=redis_conf.REDIS_EXPIRE,
         )
 
     # Возвращает жанр по id.
@@ -78,9 +75,7 @@ class GenreService:
     async def get_by_id(self, genre_id: str) -> Genre | None:
         """Return a genre by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        # genre = await self._genre_from_cache(genre_id)
-        # TODO cache
-        genre = None
+        genre = await self._genre_from_cache(genre_id)
         if not genre:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             genre = await self._get_genre_from_search(genre_id)
@@ -118,8 +113,15 @@ class GenreService:
 
     async def _put_genre_to_cache(self, genre: Genre):
         """Save a genre to cache."""
-        await self.redis.hset("genre", str(genre.id), genre.json())
-        await self.redis.expire("genre", GENRE_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.hset(
+            name="genre",
+            key=str(genre.id),
+            value=genre.json(),
+        )
+        await self.redis.expire(
+            name="genre",
+            time=redis_conf.REDIS_EXPIRE,
+        )
 
 
 @lru_cache()

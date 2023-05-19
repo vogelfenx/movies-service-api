@@ -11,8 +11,9 @@ from models.film import Film
 from models.person import Person
 from redis.asyncio import Redis
 from .queries import QueryPersonByIdAndName, QueryPersonByName
+from core.config import redis_conf
 
-PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
+redis_conf.REDIS_EXPIRE = 60 * 5  # 5 минут
 ES_BODY_SEARCH = "_source"
 
 logger = get_logger(__name__)
@@ -134,7 +135,7 @@ class PersonService:
                 default=dict,
             ),
         )
-        await self.redis.expire("person_key", PERSON_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.expire("person_key", redis_conf.REDIS_EXPIRE)
 
     async def _get_person_from_search(
         self,
@@ -184,7 +185,7 @@ class PersonService:
         )
         await self.redis.expire(
             "person",
-            PERSON_CACHE_EXPIRE_IN_SECONDS,
+            redis_conf.REDIS_EXPIRE,
         )
 
     # Возвращает список всех жанров.
@@ -196,23 +197,20 @@ class PersonService:
     ) -> list[Film] | None:
         """Return person films by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        # TODO: вернуть кэш
-
-        # person_films = await self._person_films_from_cache(person_id)
-        person_films = None
+        person_films = await self._person_films_from_cache(person_id)
         if not person_films:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             person_films = await self._get_person_films_from_search(
-                person_id,
-                person_name,
+                person_id=person_id,
+                person_name=person_name,
             )
             if not person_films:
                 # Если список отсутствует в Elasticsearch, значит ошибка
                 return None
             # Сохраняем жанры в кеш
             await self._put_person_films_to_cache(
-                person_id,
-                person_films,
+                person_id=person_id,
+                person_films=person_films,
             )
 
         return person_films
@@ -243,7 +241,10 @@ class PersonService:
         person_id: str,
     ) -> list[Film] | None:
         """Get a person films data from cache (uses redis hget)."""
-        redis_data = await self.redis.hget("person_films", person_id)
+        redis_data = await self.redis.hget(
+            name="person_films",
+            key=person_id,
+        )
         if not redis_data:
             return None
 
@@ -258,11 +259,11 @@ class PersonService:
     ):
         """Save a film data to cache (uses redis hset)."""
         await self.redis.hset(
-            "person_films",
-            person_id,
-            orjson.dumps(person_films, default=dict),
+            name="person_films",
+            key=person_id,
+            value=orjson.dumps(person_films, default=dict),
         )
-        await self.redis.expire("person_films", PERSON_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.expire("person_films", redis_conf.REDIS_EXPIRE)
 
     async def get_person_data(
         self,
@@ -275,8 +276,8 @@ class PersonService:
         if not person_data:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             person_data = await self._get_person_data_from_search(
-                person_id,
-                person_name,
+                person_id=person_id,
+                person_name=person_name,
             )
             if not person_data:
                 return None
@@ -292,8 +293,8 @@ class PersonService:
         person_name: str,
     ) -> list[Film] | None:
         """Return person films by id."""
-        query = person_films_query(
-            person_id=person_id,
+        query = QueryPersonByIdAndName(
+            id=person_id,
             name=person_name,
         )
 
@@ -312,10 +313,7 @@ class PersonService:
         person_id: str,
     ) -> list[Film] | None:
         """Return person films by id from cache."""
-        redis_data = await self.redis.hget(
-            "person_data",
-            person_id,
-        )
+        redis_data = await self.redis.hget(name="person_data", key=person_id)
         if not redis_data:
             return None
 
@@ -329,13 +327,13 @@ class PersonService:
     ):
         """Save a person data to cache (uses redis hset)."""
         await self.redis.hset(
-            "person_data",
-            person_id,
-            orjson.dumps(person_data, default=dict),
+            name="person_data",
+            key=person_id,
+            value=orjson.dumps(person_data, default=dict),
         )
         await self.redis.expire(
-            "person_data",
-            PERSON_CACHE_EXPIRE_IN_SECONDS,
+            name="person_data",
+            time=redis_conf.REDIS_EXPIRE,
         )
 
 
