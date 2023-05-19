@@ -14,7 +14,7 @@ services:
     depends_on:
       - redis
       - elasticsearch
-    
+
     entrypoint: [
       "sh",
       "-c",
@@ -30,18 +30,19 @@ services:
     env_file:
       fastapi-solution/.env
     ports:
-      - "6379:6379"   
-      
+      - "6379:6379"
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
     container_name: movies_elasticsearch
     ports:
       - "9200:9200"
     environment:
-      - discovery.type=single-node  
+      - discovery.type=single-node
       - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
     env_file:
-      fastapi-solution/.env     
+      fastapi-solution/.env
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.6.2
@@ -50,4 +51,4 @@ services:
     depends_on:
       - elasticsearch
     ports:
-      - 5601:5601       
+      - 5601:5601
