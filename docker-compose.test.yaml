@@ -10,7 +10,8 @@ services:
 
     env_file:
       fastapi-solution/.env
-
+    volumes:
+      - ./fastapi-solution/src/:/opt/app/src
     depends_on:
       - redis
       - elasticsearch
@@ -18,7 +19,7 @@ services:
     entrypoint: [
       "sh",
       "-c",
-      "uvicorn src.main:app  --host 0.0.0.0 --port 8000",
+      "uvicorn src.main:app  --host 0.0.0.0 --port 8000 --reload",
     ]
 
   redis:
@@ -33,7 +34,7 @@ services:
       - "6379:6379"   
       
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
+    image: elasticsearch:8.6.2
     container_name: movies_elasticsearch
     ports:
       - "9200:9200"
@@ -44,7 +45,7 @@ services:
       fastapi-solution/.env     
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.6.2
+    image: kibana:8.6.2
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     depends_on:

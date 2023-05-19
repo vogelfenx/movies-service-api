@@ -1,31 +1,19 @@
 from http import HTTPStatus
-from uuid import UUID
 
 from core.config import fast_api_conf
 from core.messages import GENRE_NOT_FOUND
 from fastapi import APIRouter, Depends, HTTPException, Path
-from pydantic import BaseModel, Field
-from services.genre import GenreService, get_genres_service
+
+from .models import GenreResponse
+from .service import GenreService, get_genres_service
 
 router = APIRouter()
 
 
-class Genre(BaseModel):
-    """Genre response model."""
-
-    id: UUID = Field(alias="uuid")
-    name: str
-
-    class Config:
-        """Config for aliasing."""
-
-        allow_population_by_field_name = True
-
-
-@router.get("/", response_model=list[Genre])
+@router.get("/", response_model=list[GenreResponse])
 async def genres(
     genre_service: GenreService = Depends(get_genres_service),
-) -> list[Genre]:
+) -> list[GenreResponse]:
     """Return genres.
 
     Raises:
@@ -38,10 +26,10 @@ async def genres(
             detail=GENRE_NOT_FOUND,
         )
 
-    return [Genre(uuid=x.id, name=x.name) for x in genres_list]
+    return [GenreResponse(uuid=x.id, name=x.name) for x in genres_list]
 
 
-@router.get("/{genre_id}", response_model=Genre)
+@router.get("/{genre_id}", response_model=GenreResponse)
 async def genre(
     genre_id: str = Path(
         description="Genre's UUID",
@@ -49,7 +37,7 @@ async def genre(
         regex=fast_api_conf.UUID_REGEXP,
     ),
     genre_service: GenreService = Depends(get_genres_service),
-) -> Genre:
+) -> GenreResponse:
     """Return a genre by id.
 
     Raises:
@@ -62,4 +50,4 @@ async def genre(
             detail=GENRE_NOT_FOUND,
         )
 
-    return Genre.parse_obj(genre_model)
+    return GenreResponse.parse_obj(genre_model)

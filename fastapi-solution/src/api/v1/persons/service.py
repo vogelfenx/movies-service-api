@@ -2,19 +2,18 @@ from functools import lru_cache
 
 import orjson
 from core.logger import get_logger
-from db.elastic import get_elastic
-from db.redis import get_redis
-from elasticsearch import AsyncElasticsearch, NotFoundError
-from elasticsearch.helpers import async_scan
+from db.cache.redis.helpers import prepare_key_by_args
+from db.cache.redis.redis import get_redis
+from db.search.abc.search import AbstractSearch
+from db.search.dependency import get_search
 from fastapi import Depends
 from models.film import Film
 from models.person import Person
 from redis.asyncio import Redis
+from .queries import QueryPersonByIdAndName, QueryPersonByName
+from core.config import redis_conf
 
-from .common import prepare_key_by_args
-from .queries.person import person_films_query, person_search_query
-
-PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
+redis_conf.REDIS_EXPIRE = 60 * 5  # 5 минут
 ES_BODY_SEARCH = "_source"
 
 logger = get_logger(__name__)
@@ -26,10 +25,10 @@ class PersonService:
     def __init__(
         self,
         redis: Redis,
-        elastic: AsyncElasticsearch,
+        search: AbstractSearch,
     ):
         self.redis = redis
-        self.elastic = elastic
+        self.search = search
 
     # get_by_id возвращает объект персоны.
     # Он опционален, так как персона может отсутствовать в базе
@@ -42,7 +41,7 @@ class PersonService:
         person = await self._person_from_cache(person_id)
         if not person:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
-            person = await self._get_person_from_elastic(person_id)
+            person = await self._get_person_from_search(person_id)
             if not person:
                 # Если он отсутствует в ES, то персоны вообще нет в базе
                 return None
@@ -69,7 +68,7 @@ class PersonService:
         persons = await self._persons_by_key_from_cache(key)
         if not persons:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
-            persons = await self._get_persons_by_name_from_elastic(
+            persons = await self._get_persons_by_name_from_search(
                 name=name,
                 page_size=page_size,
                 page_number=page_number,
@@ -85,25 +84,27 @@ class PersonService:
 
         return persons
 
-    async def _get_persons_by_name_from_elastic(
+    async def _get_persons_by_name_from_search(
         self,
         name: str,
         page_size: int,
         page_number: int,
     ) -> list[Person] | None:
         """Return persons by name from Elasticsearch."""
-        query = person_search_query(name=name)
+        query = QueryPersonByName(name=name)
 
-        docs = await self.elastic.search(
+        _hits = await self.search.search(
             index="persons",
             query=query,
             size=page_size,
             from_=page_number,
         )
 
-        return [
-            Person.parse_obj(x[ES_BODY_SEARCH]) for x in docs["hits"]["hits"]
-        ]
+        hits: list[dict] = []
+        async for hit in _hits:
+            hits.append(hit)
+
+        return [Person.parse_obj(x) for x in hits]
 
     async def _persons_by_key_from_cache(
         self,
@@ -134,22 +135,24 @@ class PersonService:
                 default=dict,
             ),
         )
-        await self.redis.expire("person_key", PERSON_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.expire("person_key", redis_conf.REDIS_EXPIRE)
 
-    async def _get_person_from_elastic(
+    async def _get_person_from_search(
         self,
         person_id: str,
     ) -> Person | None:
-        """Get a person from elastic."""
-        try:
-            doc = await self.elastic.get(
-                index="persons",
-                id=person_id,
-            )
-        except NotFoundError:
+        """Get a person from search db."""
+        hit = await self.search.get(
+            index="persons",
+            id=person_id,
+        )
+        if not hit:
             return None
 
-        return Person(**doc[ES_BODY_SEARCH])
+        type("hit=============================")
+
+        type(hit)
+        return Person.parse_obj(hit)
 
     async def _person_from_cache(
         self,
@@ -182,7 +185,7 @@ class PersonService:
         )
         await self.redis.expire(
             "person",
-            PERSON_CACHE_EXPIRE_IN_SECONDS,
+            redis_conf.REDIS_EXPIRE,
         )
 
     # Возвращает список всех жанров.
@@ -197,48 +200,51 @@ class PersonService:
         person_films = await self._person_films_from_cache(person_id)
         if not person_films:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
-            person_films = await self._get_person_films_from_elastic(
-                person_id,
-                person_name,
+            person_films = await self._get_person_films_from_search(
+                person_id=person_id,
+                person_name=person_name,
             )
             if not person_films:
                 # Если список отсутствует в Elasticsearch, значит ошибка
                 return None
             # Сохраняем жанры в кеш
             await self._put_person_films_to_cache(
-                person_id,
-                person_films,
+                person_id=person_id,
+                person_films=person_films,
             )
 
         return person_films
 
-    async def _get_person_films_from_elastic(
+    async def _get_person_films_from_search(
         self,
         person_id: str,
         person_name: str,
     ) -> list[Film] | None:
         """Get a person films data from elasticsearch."""
-        docs = []
-        query = person_films_query(
-            person_id=person_id,
+        query = QueryPersonByIdAndName(
+            id=person_id,
             name=person_name,
         )
 
-        async for doc in async_scan(
-            client=self.elastic,
+        hits = []
+        _hits = await self.search.scan(
             index="movies",
             query=query,
-        ):
-            docs.append(doc)
+        )
+        async for hit in _hits:
+            hits.append(hit["_source"])
 
-        return [Film.parse_obj(x[ES_BODY_SEARCH]) for x in docs]
+        return [Film.parse_obj(x) for x in hits]
 
     async def _person_films_from_cache(
         self,
         person_id: str,
     ) -> list[Film] | None:
         """Get a person films data from cache (uses redis hget)."""
-        redis_data = await self.redis.hget("person_films", person_id)
+        redis_data = await self.redis.hget(
+            name="person_films",
+            key=person_id,
+        )
         if not redis_data:
             return None
 
@@ -253,11 +259,11 @@ class PersonService:
     ):
         """Save a film data to cache (uses redis hset)."""
         await self.redis.hset(
-            "person_films",
-            person_id,
-            orjson.dumps(person_films, default=dict),
+            name="person_films",
+            key=person_id,
+            value=orjson.dumps(person_films, default=dict),
         )
-        await self.redis.expire("person_films", PERSON_CACHE_EXPIRE_IN_SECONDS)
+        await self.redis.expire("person_films", redis_conf.REDIS_EXPIRE)
 
     async def get_person_data(
         self,
@@ -269,9 +275,9 @@ class PersonService:
         person_data = await self._person_data_from_cache(person_id)
         if not person_data:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
-            person_data = await self._get_person_data_from_elastic(
-                person_id,
-                person_name,
+            person_data = await self._get_person_data_from_search(
+                person_id=person_id,
+                person_name=person_name,
             )
             if not person_data:
                 return None
@@ -281,36 +287,33 @@ class PersonService:
 
         return person_data
 
-    async def _get_person_data_from_elastic(
+    async def _get_person_data_from_search(
         self,
         person_id: str,
         person_name: str,
     ) -> list[Film] | None:
         """Return person films by id."""
-        docs = []
-        query = person_films_query(
-            person_id=person_id,
+        query = QueryPersonByIdAndName(
+            id=person_id,
             name=person_name,
         )
 
-        async for doc in async_scan(
-            client=self.elastic,
+        hits = []
+        _hits = await self.search.scan(
             index="movies",
             query=query,
-        ):
-            docs.append(doc)
+        )
+        async for hit in _hits:
+            hits.append(hit["_source"])
 
-        return [Film.parse_obj(x[ES_BODY_SEARCH]) for x in docs]
+        return [Film.parse_obj(x) for x in hits]
 
     async def _person_data_from_cache(
         self,
         person_id: str,
     ) -> list[Film] | None:
         """Return person films by id from cache."""
-        redis_data = await self.redis.hget(
-            "person_data",
-            person_id,
-        )
+        redis_data = await self.redis.hget(name="person_data", key=person_id)
         if not redis_data:
             return None
 
@@ -324,20 +327,20 @@ class PersonService:
     ):
         """Save a person data to cache (uses redis hset)."""
         await self.redis.hset(
-            "person_data",
-            person_id,
-            orjson.dumps(person_data, default=dict),
+            name="person_data",
+            key=person_id,
+            value=orjson.dumps(person_data, default=dict),
         )
         await self.redis.expire(
-            "person_data",
-            PERSON_CACHE_EXPIRE_IN_SECONDS,
+            name="person_data",
+            time=redis_conf.REDIS_EXPIRE,
         )
 
 
 @lru_cache()
 def get_person_service(
     redis: Redis = Depends(get_redis),
-    elastic: AsyncElasticsearch = Depends(get_elastic),
+    search: AbstractSearch = Depends(get_search),
 ) -> PersonService:
     """Use for set the dependency in api route."""
-    return PersonService(redis, elastic)
+    return PersonService(redis, search)
