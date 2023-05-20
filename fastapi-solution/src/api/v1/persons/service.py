@@ -100,11 +100,9 @@ class PersonService:
             from_=page_number,
         )
 
-        hits: list[dict] = []
-        async for hit in _hits:
-            hits.append(hit)
+        hits = _hits["hits"]["hits"]
 
-        return [Person.parse_obj(x) for x in hits]
+        return [Person.parse_obj(x["_source"]) for x in hits]
 
     async def _persons_by_key_from_cache(
         self,
