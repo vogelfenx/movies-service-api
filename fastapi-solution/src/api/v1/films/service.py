@@ -189,7 +189,7 @@ class FilmService:
         )
         if not doc:
             return None
-        return Film(**doc["_source"])
+        return Film(**doc)
 
     async def _film_from_cache(self, film_id: str) -> Film | None:
         """Search for a film in cache by film ID."""
