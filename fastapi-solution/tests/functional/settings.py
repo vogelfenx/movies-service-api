@@ -27,5 +27,14 @@ class MovieSettings(BaseTestSettings):
     )
 
 
+class PersonSettings(BaseTestSettings):
+    es_index: str = 'persons'
+    es_id_field: str = 'id'
+    es_index_movies_mapping: dict = load(
+        open('fastapi-solution/tests/functional/testdata/es_person_schema.json', 'r')
+    )
+
+
 base_settings = BaseTestSettings()  # type: ignore
 movies_settings = MovieSettings()  # type: ignore
+persons_settings = PersonSettings()  # type: ignore
