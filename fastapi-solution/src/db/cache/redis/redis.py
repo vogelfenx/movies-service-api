@@ -14,15 +14,16 @@ class RedisCache(AbstractCache):
     def __init__(self, host: str, port: int) -> None:
         self.host = host
         self.port = port
+        self._client = Redis(
+            host=self.host,
+            port=self.port,
+        )
         return super().__init__()
 
     @property
     def client(self):
         """Ger or initialize Redis Connection."""
-        return Redis(
-            host=self.host,
-            port=self.port,
-        )
+        return self._client
 
     async def close(self):
         """Close Redis connection."""
