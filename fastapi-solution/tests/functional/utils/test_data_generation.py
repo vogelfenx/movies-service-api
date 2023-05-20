@@ -85,3 +85,16 @@ def generate_films_by_person(
         films.append(film)
 
     return films
+
+
+def generate_genres(genre_names: list[str] | None = None) -> list[dict]:
+    if not genre_names:
+        genres_names = ['Action', 'News', 'Horror', 'Documentary', 'History']
+
+    return [
+        {
+            'id': str(uuid4()),
+            'name': genre,
+            'description': f"Genre description: {genre}",
+        } for genre in genres_names
+    ]

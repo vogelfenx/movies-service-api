@@ -40,6 +40,17 @@ class PersonSettings(BaseTestSettings):
     )
 
 
+class GenreSerttings(BaseTestSettings):
+    es_index: str = 'genres'
+    es_id_field: str = 'id'
+    es_index_genres_mapping: dict = load(
+        open(f"{base_dir}/testdata/es_genre_schema.json", 'r')
+    )
+
+    api_endpoint_url = 'genres/'
+
+
 base_settings = BaseTestSettings()  # type: ignore
 movies_settings = MovieSettings()  # type: ignore
 persons_settings = PersonSettings()  # type: ignore
+genres_settings = GenreSerttings()  # type: ignore
