@@ -23,7 +23,7 @@ def docker_compose_file(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def main_api_url(module_scoped_container_getter):
+def main_api_url():
     """Wait for the api from fastapi_main_app_main to become responsive"""
     request_session = requests.Session()
     retries = Retry(
@@ -31,10 +31,11 @@ def main_api_url(module_scoped_container_getter):
     )
     request_session.mount("http://", HTTPAdapter(max_retries=retries))
 
-    service = module_scoped_container_getter.get("api").network_info[0]
-
-    # api_url = f"http://{service.hostname}:{service.host_port}" # TODO: check it later
-    api_url = f"http://localhost:{service.host_port}"
+    api_url = "{0}:{1}/{2}".format(
+        base_settings.service_url,
+        base_settings.service_url_port,
+        base_settings.api_root_endpoint,
+    )
 
     return api_url
 
