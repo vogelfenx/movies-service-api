@@ -86,11 +86,11 @@ class Search(AbstractSearch):
     ):
         _query = None
         if query:
-            _query = query.get_query().get("query", None)
+            _query = query.get_query()
 
         hits = await self.client.search(
             index=index,
-            query=_query,
+            body=_query,
             size=size,
             from_=from_,
         )

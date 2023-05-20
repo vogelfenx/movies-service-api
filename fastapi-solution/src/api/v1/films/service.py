@@ -1,32 +1,27 @@
 from functools import lru_cache
 from uuid import UUID
 
-import orjson
-from elasticsearch import NotFoundError
 from fastapi import Depends
-from redis.asyncio import Redis
 from api.v1.films.queries import QueryFilm
 
 from db.search.abc.search import AbstractSearch
+from db.cache.abc.cache import AbstractCache
 from core.config import es_conf
 from core.logger import get_logger
 from db.search.dependency import get_search
-from db.cache.redis.redis import get_redis
+from db.cache.dependency import get_cache
 from models.film import Film
 
-from db.cache.redis.helpers import prepare_key_by_args
+from db.cache.helpers import prepare_key_by_args
 
 logger = get_logger(__name__)
-
-
-FILM_CACHE_EXPIRE_IN_SECONDS = 60 * 5  # 5 минут
 
 
 class FilmService:
     """FilmService class."""
 
-    def __init__(self, redis: Redis, search: AbstractSearch):
-        self.redis = redis
+    def __init__(self, cache: AbstractCache, search: AbstractSearch):
+        self.cache = cache
         self.search = search
 
     async def get_films_list(
@@ -59,9 +54,8 @@ class FilmService:
             search_fields=search_fields,
             search_query=search_query,
         )
-        logger.info("Search films in cache by key <{0}>".format(key))
 
-        films_count, films = await self._films_list_from_cache(key)
+        films_count, films = await self._get_films_from_cache(key)
 
         from_index = page_size * (page_number - 1)
 
@@ -74,8 +68,7 @@ class FilmService:
                 search_query=search_query,
                 search_fields=search_fields,
             )
-
-        await self._put_films_to_cache(key, films_count, films)
+            await self._put_films_to_cache(key, films_count, films)
 
         return films_count, films
 
@@ -88,7 +81,7 @@ class FilmService:
         Returns:
             The requested film or None.
         """
-        film = await self._film_from_cache(str(film_id))
+        film = await self._get_film_from_cache(str(film_id))
         if not film:
             film = await self._get_film_from_search(film_id)
             if not film:
@@ -189,17 +182,17 @@ class FilmService:
         )
         if not doc:
             return None
-        return Film(**doc["_source"])
+        return Film(**doc)
 
-    async def _film_from_cache(self, film_id: str) -> Film | None:
+    async def _get_film_from_cache(self, film_id: str) -> Film | None:
         """Search for a film in cache by film ID."""
-        film_data = await self.redis.get(film_id)
-        if not film_data:
+        cached_films = await self.cache.get(name="film", key=film_id)
+        if not cached_films:
             return None
 
-        return Film.parse_raw(film_data)
+        return Film.parse_raw(cached_films)
 
-    async def _films_list_from_cache(
+    async def _get_films_from_cache(
         self,
         args_key: str,
     ) -> tuple[int | None, list[Film] | None]:
@@ -212,14 +205,13 @@ class FilmService:
         Returns:
             Count of films list items, list of films objects
         """
-        films_data = await self.redis.hget(name="films", key=args_key)
+        cached_films = await self.cache.get(name="films", key=args_key)
 
-        if not films_data:
+        if not cached_films:
             return None, None
 
-        json_data = orjson.loads(films_data.decode("utf-8"))
-        films_count = json_data["count"]
-        films = [Film.parse_obj(film) for film in json_data["values"]]
+        films_count = cached_films["count"]
+        films = [Film.parse_obj(film) for film in cached_films["values"]]
 
         return films_count, films
 
@@ -230,10 +222,10 @@ class FilmService:
         Args:
             film: a Film object.
         """
-        await self.redis.set(
-            name=str(film.id),
-            value=film.json(),
-            ex=FILM_CACHE_EXPIRE_IN_SECONDS,
+        await self.cache.set(
+            name="film",
+            key=str(film.id),
+            key_value=film.json(),
         )
 
     async def _put_films_to_cache(
@@ -250,23 +242,18 @@ class FilmService:
             films: films that was fetched
         """
         films_data = {"count": films_count, "values": list(films)}
-        json_data = orjson.dumps(films_data, default=dict)
 
-        await self.redis.hset(
+        await self.cache.set(
             name="films",
             key=args_key,
-            value=json_data,
-        )
-        await self.redis.expire(
-            name="films",
-            time=FILM_CACHE_EXPIRE_IN_SECONDS,
+            key_value=films_data,
         )
 
 
 @lru_cache()
 def get_film_service(
-    redis: Redis = Depends(get_redis),
+    cache: AbstractCache = Depends(get_cache),
     search: AbstractSearch = Depends(get_search),
 ) -> FilmService:
     """Use for set the dependency in api route."""
-    return FilmService(redis, search)
+    return FilmService(cache, search)

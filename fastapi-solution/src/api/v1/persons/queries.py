@@ -71,5 +71,7 @@ class QueryPersonByName(SelectQuery):
     def query(self):
         """The query for ES which would search by name."""
         return {
-            "match": {"name": self.name},
+            "query": {
+                "match": {"name": self.name},
+            },
         }

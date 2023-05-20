@@ -1,19 +1,16 @@
 from functools import lru_cache
 
-import orjson
 from core.logger import get_logger
-from db.cache.redis.helpers import prepare_key_by_args
-from db.cache.redis.redis import get_redis
+from db.cache.helpers import prepare_key_by_args
 from db.search.abc.search import AbstractSearch
 from db.search.dependency import get_search
+from db.cache.dependency import get_cache
+from db.cache.abc.cache import AbstractCache
 from fastapi import Depends
 from models.film import Film
 from models.person import Person
-from redis.asyncio import Redis
 from .queries import QueryPersonByIdAndName, QueryPersonByName
-from core.config import redis_conf
 
-redis_conf.REDIS_EXPIRE = 60 * 5  # 5 минут
 ES_BODY_SEARCH = "_source"
 
 logger = get_logger(__name__)
@@ -24,10 +21,10 @@ class PersonService:
 
     def __init__(
         self,
-        redis: Redis,
+        cache: AbstractCache,
         search: AbstractSearch,
     ):
-        self.redis = redis
+        self.cache = cache
         self.search = search
 
     # get_by_id возвращает объект персоны.
@@ -38,7 +35,7 @@ class PersonService:
     ) -> Person | None:
         """Return a person by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        person = await self._person_from_cache(person_id)
+        person = await self._get_person_from_cache(person_id)
         if not person:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
             person = await self._get_person_from_search(person_id)
@@ -65,7 +62,7 @@ class PersonService:
             page_size=page_size,
             page_number=page_number,
         )
-        persons = await self._persons_by_key_from_cache(key)
+        persons = await self._get_persons_by_key_from_cache(key)
         if not persons:
             # Если персоны нет в кеше, то ищем его в Elasticsearch
             persons = await self._get_persons_by_name_from_search(
@@ -77,7 +74,7 @@ class PersonService:
                 # Если он отсутствует в ES, то персоны вообще нет в базе
                 return None
             # Сохраняем персону в кеш
-            await self._put_person_by_key_to_cache(
+            await self._put_persons_by_key_to_cache(
                 key=key,
                 persons=persons,
             )
@@ -100,42 +97,36 @@ class PersonService:
             from_=page_number,
         )
 
-        hits: list[dict] = []
-        async for hit in _hits:
-            hits.append(hit)
+        hits = _hits["hits"]["hits"]
 
-        return [Person.parse_obj(x) for x in hits]
+        return [Person.parse_obj(x["_source"]) for x in hits]
 
-    async def _persons_by_key_from_cache(
+    async def _get_persons_by_key_from_cache(
         self,
         key: str,
     ) -> list[Person] | None:
         """Return persons by name from cache."""
-        # Получение данных о персоне из кеша по ключу, используя команду hget
-        # https://redis.io/commands/get/
-        redis_data = await self.redis.hget("person_key", key)
-        if not redis_data:
+        cached_persons = await self.cache.get(
+            name="person_key",
+            key=key,
+        )
+        if not cached_persons:
             return None
 
         # pydantic предоставляет API для создания объекта моделей из json
-        persons_json = orjson.loads(redis_data.decode("utf-8"))
-        return [Person.parse_obj(x) for x in persons_json]
+        return [Person.parse_obj(person) for person in cached_persons]
 
-    async def _put_person_by_key_to_cache(
+    async def _put_persons_by_key_to_cache(
         self,
         key: str,
         persons: list[Person],
     ):
-        """Save a person data to cache (uses redis hset)."""
-        await self.redis.hset(
-            "person_key",
-            key,
-            orjson.dumps(
-                persons,
-                default=dict,
-            ),
+        """Save a person data to cache."""
+        await self.cache.set(
+            name="person_key",
+            key=key,
+            key_value=persons,
         )
-        await self.redis.expire("person_key", redis_conf.REDIS_EXPIRE)
 
     async def _get_person_from_search(
         self,
@@ -154,38 +145,28 @@ class PersonService:
         type(hit)
         return Person.parse_obj(hit)
 
-    async def _person_from_cache(
+    async def _get_person_from_cache(
         self,
         person_id: str,
     ) -> Person | None:
         """Get a person from cache."""
-        # Пытаемся получить данные о персоне из кеша, используя команду get
-        # https://redis.io/commands/get/
-        redis_data = await self.redis.hget(
-            "person",
-            person_id,
-        )
-        if not redis_data:
+        cached_person = await self.cache.get(name="person", key=person_id)
+        if not cached_person:
             return None
 
         # pydantic предоставляет API для создания объекта моделей из json
-        person_json = orjson.loads(redis_data.decode("utf-8"))
-        return Person.parse_obj(person_json)
+        return Person.parse_obj(cached_person)
 
     async def _put_person_to_cache(
         self,
         person: Person,
     ):
-        """Save a person to cache (uses redis hset)."""
+        """Save a person to cache."""
         # pydantic позволяет сериализовать модель в json
-        await self.redis.hset(
-            "person",
-            str(person.id),
-            person.json(),
-        )
-        await self.redis.expire(
-            "person",
-            redis_conf.REDIS_EXPIRE,
+        await self.cache.set(
+            name="person",
+            key=str(person.id),
+            key_value=person,
         )
 
     # Возвращает список всех жанров.
@@ -197,7 +178,7 @@ class PersonService:
     ) -> list[Film] | None:
         """Return person films by id."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        person_films = await self._person_films_from_cache(person_id)
+        person_films = await self._get_person_films_from_cache(person_id)
         if not person_films:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             person_films = await self._get_person_films_from_search(
@@ -236,34 +217,32 @@ class PersonService:
 
         return [Film.parse_obj(x) for x in hits]
 
-    async def _person_films_from_cache(
+    async def _get_person_films_from_cache(
         self,
         person_id: str,
     ) -> list[Film] | None:
-        """Get a person films data from cache (uses redis hget)."""
-        redis_data = await self.redis.hget(
+        """Get a person films data from cache."""
+        cached_person_films = await self.cache.get(
             name="person_films",
             key=person_id,
         )
-        if not redis_data:
+        if not cached_person_films:
             return None
 
         # pydantic предоставляет API для создания объекта моделей из json
-        person_films_json = orjson.loads(redis_data.decode("utf-8"))
-        return [Film.parse_obj(x) for x in person_films_json]
+        return [Film.parse_obj(x) for x in cached_person_films]
 
     async def _put_person_films_to_cache(
         self,
         person_id: str,
         person_films: list[Film],
     ):
-        """Save a film data to cache (uses redis hset)."""
-        await self.redis.hset(
+        """Save a film data to cache."""
+        await self.cache.set(
             name="person_films",
             key=person_id,
-            value=orjson.dumps(person_films, default=dict),
+            key_value=person_films,
         )
-        await self.redis.expire("person_films", redis_conf.REDIS_EXPIRE)
 
     async def get_person_data(
         self,
@@ -272,7 +251,7 @@ class PersonService:
     ) -> list[Film] | None:
         """Get a person films."""
         # Пытаемся получить данные из кеша, потому что оно работает быстрее
-        person_data = await self._person_data_from_cache(person_id)
+        person_data = await self._get_person_data_from_cache(person_id)
         if not person_data:
             # Если жанра нет в кеше, то ищем его в Elasticsearch
             person_data = await self._get_person_data_from_search(
@@ -308,39 +287,37 @@ class PersonService:
 
         return [Film.parse_obj(x) for x in hits]
 
-    async def _person_data_from_cache(
+    async def _get_person_data_from_cache(
         self,
         person_id: str,
     ) -> list[Film] | None:
         """Return person films by id from cache."""
-        redis_data = await self.redis.hget(name="person_data", key=person_id)
-        if not redis_data:
+        cached_person_data = await self.cache.get(
+            name="person_data",
+            key=person_id,
+        )
+        if not cached_person_data:
             return None
 
-        person_data_json = orjson.loads(redis_data.decode("utf-8"))
-        return [Film.parse_obj(film) for film in person_data_json]
+        return [Film.parse_obj(film) for film in cached_person_data]
 
     async def _put_person_data_to_cache(
         self,
         person_id: str,
         person_data: list[Film],
     ):
-        """Save a person data to cache (uses redis hset)."""
-        await self.redis.hset(
+        """Save a person data to cache."""
+        await self.cache.set(
             name="person_data",
             key=person_id,
-            value=orjson.dumps(person_data, default=dict),
-        )
-        await self.redis.expire(
-            name="person_data",
-            time=redis_conf.REDIS_EXPIRE,
+            key_value=person_data,
         )
 
 
 @lru_cache()
 def get_person_service(
-    redis: Redis = Depends(get_redis),
+    cache: AbstractCache = Depends(get_cache),
     search: AbstractSearch = Depends(get_search),
 ) -> PersonService:
     """Use for set the dependency in api route."""
-    return PersonService(redis, search)
+    return PersonService(cache, search)

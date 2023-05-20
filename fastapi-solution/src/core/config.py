@@ -55,7 +55,7 @@ class RedisSettings(CommonSettings):
 
     REDIS_HOST: str
     REDIS_PORT: int
-    REDIS_EXPIRE: int
+    REDIS_EXPIRE: int = 60 * 5  # 5 min
 
 
 fast_api_conf = ApiSettings()  # type: ignore
