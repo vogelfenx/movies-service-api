@@ -13,6 +13,7 @@ class CommonSettings(BaseSettings):
     """
     Общий конфиг-класс
     """
+
     # Корень проекта
     file_path = os.path.abspath(__file__)
     dir_path = os.path.dirname(file_path)
@@ -27,6 +28,7 @@ class ApiSettings(CommonSettings):
     """
     Класс с настройками FastAPI
     """
+
     # Название проекта. Используется в Swagger-документации
     PROJECT_NAME: str
 
@@ -38,6 +40,7 @@ class ESSettings(CommonSettings):
     """
     Класс с настройками Elasticsearch
     """
+
     ELASTIC_HOST: str
     ELASTIC_PORT: int
 
@@ -49,8 +52,10 @@ class RedisSettings(CommonSettings):
     """
     Класс с настройками Redis
     """
+
     REDIS_HOST: str
     REDIS_PORT: int
+    REDIS_EXPIRE: int = 60 * 5  # 5 min
 
 
 fast_api_conf = ApiSettings()  # type: ignore
