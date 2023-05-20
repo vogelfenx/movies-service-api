@@ -86,11 +86,13 @@ class Search(AbstractSearch):
     ):
         _query = None
         if query:
-            _query = query.get_query().get("query", None)
+            # _query = query.get_query().get("query", None)
+            # Get the whole query obj, because e.g. sort param is not part of query['query'], so it will not work.
+            _query = query.get_query()
 
         hits = await self.client.search(
             index=index,
-            query=_query,
+            body=_query,
             size=size,
             from_=from_,
         )
