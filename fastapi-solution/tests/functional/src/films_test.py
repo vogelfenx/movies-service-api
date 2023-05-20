@@ -48,10 +48,14 @@ async def test_find_specified_films_without_cache(
 
     await redis_client.flushall(True)
 
-    url = main_api_url + '/api/v1/films/' + some_film['id']
+    api_endpoint_url = "{0}/{1}/{2}".format(
+        main_api_url,
+        movies_settings.api_endpoint_url,
+        some_film['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
     await redis_client.flushall(True)
@@ -98,17 +102,21 @@ async def test_find_specified_films_cache(
         movies_settings.es_id_field,
     )
 
-    url = main_api_url + '/api/v1/films/' + some_film['id']
+    api_endpoint_url = "{0}/{1}/{2}".format(
+        main_api_url,
+        movies_settings.api_endpoint_url,
+        some_film['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
     await es_clear_index(index=movies_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -156,11 +164,19 @@ async def test_find_films_without_cache(
 
     await redis_client.flushall(True)
 
-    url = main_api_url + '/api/v1/films/' +\
-                         '?sort=%2Bimdb_rating&page_size=10&page_number=4'
+    api_endpoint_url = "{0}/{1}".format(
+        main_api_url,
+        movies_settings.api_endpoint_url,
+    )
+
+    query_data.update({
+        "sort": "+imdb_rating",
+        "page_size": 10,
+        "page_number": 4,
+    })
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
     await redis_client.flushall(True)
@@ -209,18 +225,26 @@ async def test_find_films_cache(
         movies_settings.es_id_field,
     )
 
-    url = main_api_url + '/api/v1/films/' +\
-                         '?sort=%2Bimdb_rating&page_size=10&page_number=4'
+    api_endpoint_url = "{0}/{1}".format(
+        main_api_url,
+        movies_settings.api_endpoint_url,
+    )
+
+    query_data.update({
+        "sort": "+imdb_rating",
+        "page_size": 10,
+        "page_number": 4,
+    })
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
     await es_clear_index(index=movies_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 

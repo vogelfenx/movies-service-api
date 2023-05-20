@@ -31,6 +31,9 @@ class MovieSettings(BaseTestSettings):
         )
     )
 
+    api_endpoint_url: str = 'films'
+    api_endpoint_search_url: str = 'films/search'
+
 
 class PersonSettings(BaseTestSettings):
     es_index: str = 'persons'
@@ -38,6 +41,8 @@ class PersonSettings(BaseTestSettings):
     es_index_movies_mapping: dict = load(
         open(f"{base_dir}/testdata/es_person_schema.json", 'r')
     )
+
+    api_endpoint_url: str = 'persons'
 
 
 class GenreSerttings(BaseTestSettings):
@@ -47,7 +52,7 @@ class GenreSerttings(BaseTestSettings):
         open(f"{base_dir}/testdata/es_genre_schema.json", 'r')
     )
 
-    api_endpoint_url = 'genres/'
+    api_endpoint_url: str = 'genres/'
 
 
 base_settings = BaseTestSettings()  # type: ignore
