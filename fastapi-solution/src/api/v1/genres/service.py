@@ -1,14 +1,11 @@
 from functools import lru_cache
 
-import orjson
 from db.search.abc.search import AbstractSearch
 from db.search.dependency import get_search
 from db.cache.dependency import get_cache
 from db.cache.abc.cache import AbstractCache
 from fastapi import Depends
 from models.genre import Genre
-from redis.asyncio import Redis
-from core.config import redis_conf
 
 
 class GenreService:
