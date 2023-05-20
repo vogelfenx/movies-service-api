@@ -27,7 +27,8 @@ class AbstractCache(AbstractClient):
         self,
         name: str,
         key: str,
-        value: dict,
+        key_value: dict,
+        expire_time: int,
     ):
         """Set named cache by a key."""
         raise NotImplementedError

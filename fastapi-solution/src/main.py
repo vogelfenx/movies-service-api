@@ -1,13 +1,14 @@
-from api.v1.persons import routes as persons_v1
-from api.v1.films import routes as films_v1
-from api.v1.genres import routes as genres_v1
-from core.config import es_conf, fast_api_conf, redis_conf
-from db.cache.redis import redis
-from db.search import dependency
-from db.search.elastic.search import Search
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
-from redis.asyncio import Redis
+
+from api.v1.films import routes as films_v1
+from api.v1.genres import routes as genres_v1
+from api.v1.persons import routes as persons_v1
+from core.config import es_conf, fast_api_conf, redis_conf
+from db.cache import dependency as cache_dependency
+from db.cache.redis import RedisCache
+from db.search import dependency as search_dependency
+from db.search.elastic.search import Search
 
 app = FastAPI(
     title=fast_api_conf.PROJECT_NAME,
@@ -20,8 +21,11 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup():
     """Start dependency."""
-    redis.redis = Redis(host=redis_conf.REDIS_HOST, port=redis_conf.REDIS_PORT)
-    dependency.db = Search(
+    cache_dependency.cache = RedisCache(
+        host=redis_conf.REDIS_HOST,
+        port=redis_conf.REDIS_PORT,
+    )
+    search_dependency.db = Search(
         hosts=[
             "http://{host}:{port}".format(
                 host=es_conf.ELASTIC_HOST,
@@ -34,11 +38,11 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     """Stop dependency."""
-    if redis.redis:
-        await redis.redis.close()
+    if cache_dependency.cache:
+        await cache_dependency.cache.close()
 
-    if dependency.db:
-        await dependency.db.close()
+    if search_dependency.db:
+        await search_dependency.db.close()
 
 
 # Теги указываем для удобства навигации по документации
