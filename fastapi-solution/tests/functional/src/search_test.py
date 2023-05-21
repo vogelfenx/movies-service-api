@@ -65,10 +65,13 @@ async def test_search_without_cache(
 
     await redis_client.flushall(True)
 
-    # url = movies_settings.service_url + '/api/v1/films/search'
-    url = main_api_url + "/api/v1/films/search"
+    api_endpoint_url = "{0}/{1}".format(
+        main_api_url,
+        movies_settings.api_endpoint_search_url,
+    )
+
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
     await redis_client.flushall(True)
@@ -134,17 +137,20 @@ async def test_search_cache(
         movies_settings.es_id_field,
     )
 
-    # url = movies_settings.service_url + '/api/v1/films/search'
-    url = main_api_url + "/api/v1/films/search"
+    api_endpoint_url = "{0}/{1}".format(
+        main_api_url,
+        movies_settings.api_endpoint_search_url,
+    )
+
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
     await es_clear_index(index=movies_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 

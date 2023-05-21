@@ -49,10 +49,14 @@ async def test_find_person_without_cache(
 
     await redis_client.flushall(True)
 
-    url = main_api_url + '/api/v1/persons/' + some_person['id']
+    api_endpoint_url = "{0}/{1}/{2}".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+        some_person['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -102,17 +106,21 @@ async def test_find_person_cache(
         persons_settings.es_id_field,
     )
 
-    url = main_api_url + '/api/v1/persons/' + some_person['id']
+    api_endpoint_url = "{0}/{1}/{2}".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+        some_person['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
     await es_clear_index(index=persons_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -173,10 +181,14 @@ async def test_find_person_films_without_cache(
 
     await redis_client.flushall(True)
 
-    url = main_api_url + '/api/v1/persons/' + some_person['id'] + '/film'
+    api_endpoint_url = "{0}/{1}/{2}/film".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+        some_person['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -236,10 +248,14 @@ async def test_find_person_films_cache(
         persons_settings.es_id_field
     )
 
-    url = main_api_url + '/api/v1/persons/' + some_person['id'] + '/film'
+    api_endpoint_url = "{0}/{1}/{2}/film".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+        some_person['id'],
+    )
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -247,7 +263,7 @@ async def test_find_person_films_cache(
     await es_clear_index(index=persons_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -316,10 +332,14 @@ async def test_search_person_without_cache(
 
     await redis_client.flushall(True)
 
-    url = main_api_url + '/api/v1/persons/search?query=' + some_person['name']
+    api_endpoint_url = "{0}/{1}/search".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+    )
+    query_data["query"] = some_person['name']
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -390,10 +410,15 @@ async def test_search_person_cache(
         persons_settings.es_id_field
     )
 
-    url = main_api_url + '/api/v1/persons/search?query=' + some_person['name']
+    # url = main_api_url + '/api/v1/persons/search?query=' + some_person['name']
+    api_endpoint_url = "{0}/{1}/search".format(
+        main_api_url,
+        persons_settings.api_endpoint_url,
+    )
+    query_data["query"] = some_person['name']
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
@@ -401,7 +426,7 @@ async def test_search_person_cache(
     await es_clear_index(index=persons_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
-        request_path=url,
+        request_path=api_endpoint_url,
         query_payload=query_data,
     )
 
