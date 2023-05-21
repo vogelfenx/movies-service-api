@@ -18,7 +18,7 @@ class BaseTestSettings(BaseSettings):
     api_root_endpoint: str = Field("api/v1")
 
     class Config:
-        env_file = f"{base_dir}/.env"
+        env_file = f"{base_dir}/../.env"
 
 
 class MovieSettings(BaseTestSettings):
