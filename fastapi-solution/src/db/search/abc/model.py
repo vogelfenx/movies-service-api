@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 
 
 class IndexMixin(BaseModel):
+    """Every index has a name, so it is in Mixin."""
+
     index: str = Field(alias="_index")
 
     class Config:
@@ -9,6 +11,8 @@ class IndexMixin(BaseModel):
 
 
 class QueryModel(BaseModel):
+    """Query model for a search."""
+
     query: dict
     fields: list[str] | None = Field(default_factory=list)
 
