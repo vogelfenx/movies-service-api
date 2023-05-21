@@ -6,6 +6,8 @@ from redis.asyncio import Redis
 from core.logger import get_logger
 from db.cache.abc.cache import AbstractCache
 from core.config import redis_conf
+from db.backoff_policy import retry_policy
+from aioretry import retry
 
 logger = get_logger(__name__)
 
@@ -29,6 +31,7 @@ class RedisCache(AbstractCache):
         """Close Redis connection."""
         await self.client.close()
 
+    @retry(retry_policy)
     async def get(self, name: str, key: str) -> Any | None:
         """Get data from Redis cache using hash name."""
         logger.info(f"Search hash {name} in redis cache by key <{key}>")
@@ -37,6 +40,7 @@ class RedisCache(AbstractCache):
             key_value = orjson.loads(key_value.decode("utf-8"))
         return key_value
 
+    @retry(retry_policy)
     async def set(
         self,
         name: str,
