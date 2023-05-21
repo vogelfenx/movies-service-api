@@ -16,11 +16,10 @@ services:
       - redis
       - elasticsearch
 
-    entrypoint: [
-      "sh",
-      "-c",
-      "uvicorn src.main:app  --host 0.0.0.0 --port 8000 --reload",
-    ]
+    entrypoint: >
+      sh -c "python3 tests/functional/utils/wait_for_redis.py &&
+             python3 tests/functional/utils/wait_for_es.py &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
 
   redis:
     container_name: redis_cache
