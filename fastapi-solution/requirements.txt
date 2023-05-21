@@ -10,3 +10,4 @@ gunicorn==20.1.0
 uvloop; sys_platform != "win32" and implementation_name == "cpython"
 pydantic[dotenv]==1.10.7
 pytest-docker-compose==3.2.1
+aioretry==5.0.2

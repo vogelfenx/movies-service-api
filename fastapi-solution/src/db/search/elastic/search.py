@@ -4,6 +4,9 @@ from db.search.abc.query import AbstractQuery
 from db.search.abc.search import AbstractSearch
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from elasticsearch.helpers import async_scan
+from aioretry import retry
+
+from db.backoff_policy import retry_policy
 
 
 class Search(AbstractSearch):
@@ -43,6 +46,7 @@ class Search(AbstractSearch):
 
         return iter(())
 
+    @retry(retry_policy)
     async def get(
         self,
         index: str,
@@ -77,6 +81,7 @@ class Search(AbstractSearch):
             scroll=scroll,
         )
 
+    @retry(retry_policy)
     async def search(
         self,
         index: str | list[str],
@@ -95,6 +100,7 @@ class Search(AbstractSearch):
             from_=from_,
         )
 
+    @retry(retry_policy)
     async def scroll(
         self,
         scroll_id: str,
@@ -105,6 +111,7 @@ class Search(AbstractSearch):
             scroll=scroll,
         )
 
+    @retry(retry_policy)
     async def save_mapping(
         self,
         mapping: dict[str, Any],
