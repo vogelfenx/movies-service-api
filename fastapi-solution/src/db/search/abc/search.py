@@ -6,6 +6,8 @@ from .query import AbstractQuery
 
 
 class AbstractClient(ABC):
+    """Interface for a client."""
+
     @abstractproperty
     def client(self):
         ...

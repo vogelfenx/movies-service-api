@@ -38,7 +38,7 @@ class ApiSettings(CommonSettings):
 
 class ESSettings(CommonSettings):
     """
-    Класс с настройками Elasticsearch
+    Класс с настройками Elasticsearch.
     """
 
     ELASTIC_HOST: str
@@ -50,7 +50,7 @@ class ESSettings(CommonSettings):
 
 class RedisSettings(CommonSettings):
     """
-    Класс с настройками Redis
+    Класс с настройками Redis.
     """
 
     REDIS_HOST: str

@@ -19,13 +19,16 @@ class SelectQuery(AbstractQuery):
 
     @property
     def query(self) -> dict:
+        """Return a dictionary query for Search."""
         raise NotImplementedError
 
     @property
     def fields(self) -> list[str] | None:
+        """Return a list of fields for selection."""
         raise NotImplementedError
 
     def get_query(self) -> dict:
+        """Combine fields and the query in one query."""
         query = self.query.copy()
         if self.fields:
             query["_source"] = self.fields

@@ -88,13 +88,12 @@ class Search(AbstractSearch):
         if query:
             _query = query.get_query()
 
-        hits = await self.client.search(
+        return await self.client.search(
             index=index,
-            body=_query,
+            body=_query,  # type: ignore
             size=size,
             from_=from_,
         )
-        return hits
 
     async def scroll(
         self,

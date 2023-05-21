@@ -9,7 +9,7 @@ services:
       - "8000:8000"
 
     env_file:
-      fastapi-solution/.env
+      fastapi-solution/.env.sample
     volumes:
       - ./fastapi-solution/src/:/opt/app/src
     depends_on:
@@ -29,7 +29,7 @@ services:
       context: fastapi-solution
 
     env_file:
-      fastapi-solution/.env
+      fastapi-solution/.env.sample
     ports:
       - "6379:6379"
 
@@ -43,7 +43,7 @@ services:
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
     env_file:
-      fastapi-solution/.env
+      fastapi-solution/.env.sample
 
   kibana:
     image: kibana:8.6.2

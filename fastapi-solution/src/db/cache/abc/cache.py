@@ -3,6 +3,8 @@ from typing import Any
 
 
 class AbstractClient(ABC):
+    """Interface for client."""
+
     @abstractproperty
     def client(self):
         ...
@@ -13,6 +15,8 @@ class AbstractClient(ABC):
 
 
 class AbstractCache(AbstractClient):
+    """Interaface for cache."""
+
     @abstractmethod
     async def get(
         self,
