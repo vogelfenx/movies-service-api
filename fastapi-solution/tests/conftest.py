@@ -23,7 +23,7 @@ def docker_compose_file(pytestconfig):
 
 
 @pytest.fixture(scope="module")
-def main_api_url():
+def main_api_url(module_scoped_container_getter):
     """Wait for the api from fastapi_main_app_main to become responsive"""
     request_session = requests.Session()
     retries = Retry(
