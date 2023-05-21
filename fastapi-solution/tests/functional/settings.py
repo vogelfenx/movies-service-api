@@ -52,7 +52,7 @@ class GenreSerttings(BaseTestSettings):
         open(f"{base_dir}/testdata/es_genre_schema.json", 'r')
     )
 
-    api_endpoint_url: str = 'genres/'
+    api_endpoint_url: str = 'genres'
 
 
 base_settings = BaseTestSettings()  # type: ignore
