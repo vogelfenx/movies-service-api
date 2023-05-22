@@ -1,7 +1,5 @@
 version: '3'
 services:
-
-
   api:
     container_name: fast_api_service
     build:
@@ -9,19 +7,19 @@ services:
       context: fastapi-solution
     ports:
       - "8000:8000"
+
     env_file:
-      fastapi-solution/.env
-
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 5
-        window: 10s
-
+      fastapi-solution/.env.sample
+    volumes:
+      - ./fastapi-solution/src/:/opt/app/src
     depends_on:
       - redis
+      - elasticsearch
 
+    entrypoint: >
+      sh -c "python3 tests/functional/utils/wait_for_redis.py &&
+             python3 tests/functional/utils/wait_for_es.py &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
 
   redis:
     container_name: redis_cache
@@ -30,12 +28,27 @@ services:
       context: fastapi-solution
 
     env_file:
-      fastapi-solution/.env
+      fastapi-solution/.env.sample
     ports:
       - "6379:6379"
 
+  elasticsearch:
+    image: elasticsearch:8.6.2
+    container_name: movies_elasticsearch
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+    env_file:
+      fastapi-solution/.env.sample
 
-networks:
-  default:
-    external:
-      name: app_movies_network
+  kibana:
+    image: kibana:8.6.2
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601

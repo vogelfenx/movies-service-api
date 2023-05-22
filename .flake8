@@ -8,6 +8,7 @@ exclude =
     env
     .env
     .venv
+    tests
 
 extend-ignore = 
     # Q000: raises linter errors after using black formatter
