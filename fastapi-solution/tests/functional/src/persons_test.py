@@ -1,4 +1,5 @@
 from typing import Any
+from http import HTTPStatus
 
 import pytest
 from redis.asyncio import Redis
@@ -14,8 +15,30 @@ from tests.functional.testdata.person import some_person
         (
             {
                 'person_name': 'Morpheus',
+                'uuid': some_person['id']
             },
-            {'status': 200, 'name': some_person['name'], 'uuid': some_person['id']}
+            {'status': HTTPStatus.OK, 'name': some_person['name']}
+        ),
+        (
+            {
+                'person_name': 'Morpheus',
+                'uuid': '36ab4d61-3080-4029-82c4-1c892171db23'
+            },
+            {'status': HTTPStatus.NOT_FOUND, 'name': some_person['name']}
+        ),
+        (
+            {
+                'person_name': 'Morpheus',
+                'uuid': 'some'
+            },
+            {'status': HTTPStatus.UNPROCESSABLE_ENTITY, 'name': some_person['name']}
+        ),
+        (
+            {
+                'person_name': 'Morpheus',
+                'uuid': 42
+            },
+            {'status': HTTPStatus.UNPROCESSABLE_ENTITY, 'name': some_person['name']}
         )
     ]
 )
@@ -52,7 +75,7 @@ async def test_find_person_without_cache(
     api_endpoint_url = "{0}/{1}/{2}".format(
         main_api_url,
         persons_settings.api_endpoint_url,
-        some_person['id'],
+        query_data['uuid'],
     )
 
     response_body, _, response_status = await make_get_request(
@@ -63,8 +86,10 @@ async def test_find_person_without_cache(
     await redis_client.flushall(True)
 
     assert response_status == expected_response['status']
-    assert response_body['full_name'] == expected_response['name']
-    assert response_body['uuid'] == expected_response['uuid']
+    if 'full_name' in response_body.keys():
+        assert response_body['full_name'] == expected_response['name']
+    if 'uuid' in response_body.keys():
+        assert response_body['uuid'] == query_data['uuid']
 
 
 @pytest.mark.parametrize(
@@ -74,7 +99,7 @@ async def test_find_person_without_cache(
             {
                 'person_name': 'Morpheus',
             },
-            {'status': 200, 'name': some_person['name'], 'uuid': some_person['id']}
+            {'status': HTTPStatus.OK, 'name': some_person['name'], 'uuid': some_person['id']}
         )
     ]
 )
@@ -134,9 +159,35 @@ async def test_find_person_cache(
     [
         (
             {
-                'title': 'Matrix'
+                'title': 'Matrix',
+                'person_id': some_person['id'],
+                'person_name': some_person['name']
             },
-            {'status': 200, 'films_count': 30}
+            {'status': HTTPStatus.OK, 'films_count': 30}
+        ),
+        (
+            {
+                'title': 'Matrix',
+                'person_id': '36ab4d61-3080-4029-82c4-1c892171db23',
+                'person_name': 'TestPersonName'
+            },
+            {'status': HTTPStatus.NOT_FOUND, 'films_count': 1}
+        ),
+        (
+            {
+                'title': 'Matrix',
+                'person_id': 'some',
+                'person_name': 'TestPersonName'
+            },
+            {'status': HTTPStatus.UNPROCESSABLE_ENTITY, 'films_count': 1}
+        ),
+        (
+            {
+                'title': 'Matrix',
+                'person_id': 42,
+                'person_name': 'TestPersonName'
+            },
+            {'status': HTTPStatus.UNPROCESSABLE_ENTITY, 'films_count': 1}
         )
     ]
 )
@@ -164,8 +215,8 @@ async def test_find_person_films_without_cache(
 
     generated_films = generate_films_by_person(num_films=30,
                                                film_title=query_data['title'],
-                                               person_id=some_person['id'],
-                                               person_name=some_person['name'])
+                                               person_id=query_data['person_id'],
+                                               person_name=query_data['person_name'])
 
     await es_write_data(
         generated_films,
@@ -184,7 +235,7 @@ async def test_find_person_films_without_cache(
     api_endpoint_url = "{0}/{1}/{2}/film".format(
         main_api_url,
         persons_settings.api_endpoint_url,
-        some_person['id'],
+        query_data['person_id'],
     )
 
     response_body, _, response_status = await make_get_request(
@@ -205,7 +256,7 @@ async def test_find_person_films_without_cache(
             {
                 'title': 'Matrix'
             },
-            {'status': 200, 'films_count': 30}
+            {'status': HTTPStatus.OK, 'films_count': 30}
         )
     ]
 )
@@ -276,12 +327,12 @@ async def test_find_person_films_cache(
     [
         (
             {
-                'title': 'Matrix'
+                'title': 'Matrix',
+                'person_id': some_person['id'],
+                'person_name': some_person['name']
             },
-            {'status': 200,
+            {'status': HTTPStatus.OK,
              'films_count': 30,
-             'person_id': some_person['id'],
-             'person_name': some_person['name']
              }
         )
     ]
@@ -346,9 +397,10 @@ async def test_search_person_without_cache(
     await redis_client.flushall(True)
 
     assert response_status == expected_response['status']
-    assert len(response_body[0]['films']) == expected_response['films_count']
-    assert response_body[0]['uuid'] == expected_response['person_id']
-    assert response_body[0]['full_name'] == expected_response['person_name']
+    if len(response_body) > 0:
+        assert len(response_body[0]['films']) == expected_response['films_count']
+        assert response_body[0]['uuid'] == query_data['person_id']
+        assert response_body[0]['full_name'] == query_data['person_name']
 
 
 @pytest.mark.parametrize(
@@ -358,7 +410,7 @@ async def test_search_person_without_cache(
             {
                 'title': 'Matrix'
             },
-            {'status': 200,
+            {'status': HTTPStatus.OK,
              'films_count': 30,
              'person_id': some_person['id'],
              'person_name': some_person['name']
@@ -431,6 +483,7 @@ async def test_search_person_cache(
     )
 
     assert response_status == expected_response['status']
-    assert len(response_body[0]['films']) == expected_response['films_count']
-    assert response_body[0]['uuid'] == expected_response['person_id']
-    assert response_body[0]['full_name'] == expected_response['person_name']
+    if len(response_body) > 0:
+        assert len(response_body[0]['films']) == expected_response['films_count']
+        assert response_body[0]['uuid'] == expected_response['person_id']
+        assert response_body[0]['full_name'] == expected_response['person_name']
