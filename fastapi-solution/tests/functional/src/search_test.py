@@ -105,7 +105,7 @@ async def test_search_cache(
     make_get_request,
     create_es_index,
     es_write_data,
-    es_clear_index,
+    es_clean_index,
     redis_client: Redis,
     query_data: dict[str, Any],
     expected_response: dict[str, Any],
@@ -147,7 +147,7 @@ async def test_search_cache(
         query_payload=query_data,
     )
 
-    await es_clear_index(index=movies_settings.es_index)
+    await es_clean_index(index=movies_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
         request_path=api_endpoint_url,

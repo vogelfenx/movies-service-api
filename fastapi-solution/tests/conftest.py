@@ -1,33 +1,29 @@
 import asyncio
-import os
 from typing import Any
 
 import pytest
 import requests
 from aiohttp import ClientSession
-from elasticsearch import AsyncElasticsearch
-from redis.asyncio import Redis
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from tests.functional.settings import base_settings
-from tests.functional.utils.helpers import get_es_bulk_query
 
-pytest_plugins = ["docker_compose"]
-
-
-@pytest.fixture(scope="module")
-def docker_compose_file(pytestconfig):
-    """Config docker-compose for pytest."""
-    return os.path.join(str(pytestconfig.rootdir), "docker-compose.test.yaml")
+pytest_plugins = [
+    "tests.fixtures.docker",
+    "tests.fixtures.elasticsearch",
+    "tests.fixtures.redis",
+]
 
 
 @pytest.fixture(scope="module")
 def main_api_url(module_scoped_container_getter):
-    """Wait for the api from fastapi_main_app_main to become responsive"""
+    """Wait for the api from fastapi_main_app_main to become responsive."""
     request_session = requests.Session()
     retries = Retry(
-        total=1, backoff_factor=3, status_forcelist=[500, 502, 503, 504]
+        total=1,
+        backoff_factor=3,
+        status_forcelist=[500, 502, 503, 504],
     )
     request_session.mount("http://", HTTPAdapter(max_retries=retries))
 
@@ -48,92 +44,10 @@ def fixture_event_loop():
 
 
 @pytest.fixture(scope="session")
-async def es_client(session_scoped_container_getter):
-    """Elasticsearch client fixture."""
-    service = session_scoped_container_getter.get(
-        "elasticsearch"
-    ).network_info[0]
-
-    es_client = AsyncElasticsearch(
-        hosts=[
-            {
-                "host": "localhost",
-                "port": int(service.host_port),
-                "scheme": "http",
-            }
-        ],
-    )
-
-    yield es_client
-    await es_client.close()
-
-
-@pytest.fixture(scope="session")
 async def aiohttp_session():
     session = ClientSession()
     yield session
     await session.close()
-
-
-@pytest.fixture(scope="session")
-async def redis_client(session_scoped_container_getter):
-    """Elasticsearch client fixture."""
-
-    service = session_scoped_container_getter.get("redis").network_info[0]
-    client = Redis(
-        host="localhost",
-        port=int(service.host_port),
-    )
-
-    yield client
-    await client.flushall(True)
-    await client.close()
-
-
-@pytest.fixture
-def es_write_data(es_client: AsyncElasticsearch):
-    async def inner(data: list[dict], es_index: str, es_id_field: str):
-        test_data_query = get_es_bulk_query(
-            data,
-            es_index,
-            es_id_field,
-        )
-
-        response = await es_client.bulk(
-            operations=test_data_query,
-            refresh=True,
-        )
-
-        if response["errors"]:
-            raise Exception("Ошибка записи данных в Elasticsearch")
-
-    return inner
-
-
-@pytest.fixture
-def es_clear_index(es_client: AsyncElasticsearch):
-    async def inner(index: str):
-        await es_client.delete_by_query(
-            index=index,
-            query={"match_all": {}},
-        )
-
-    return inner
-
-
-@pytest.fixture
-def create_es_index(es_client: AsyncElasticsearch):
-    async def inner(index: str, index_settings: dict, index_mappings: dict):
-        if await es_client.indices.exists(index=index):
-            await es_client.indices.delete(index=index)
-
-        await es_client.indices.create(
-            index=index,
-            settings=index_settings,
-            mappings=index_mappings,
-        )
-
-    return inner
 
 
 @pytest.fixture
