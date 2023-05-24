@@ -58,7 +58,6 @@ async def es_client(session_scoped_container_getter):
         hosts=[
             {
                 "host": "localhost",
-                # 'host': service.hostname, # TODO: check it later
                 "port": int(service.host_port),
                 "scheme": "http",
             }
@@ -81,11 +80,10 @@ async def redis_client(session_scoped_container_getter):
     """Elasticsearch client fixture."""
 
     service = session_scoped_container_getter.get("redis").network_info[0]
-
-    # client = Redis(host=service.hostname, # # TODO: check it later
-    #                port=service.host_port)
-
-    client = Redis(host="localhost", port=6379)
+    client = Redis(
+        host="localhost",
+        port=int(service.host_port),
+    )
 
     yield client
     await client.flushall(True)
