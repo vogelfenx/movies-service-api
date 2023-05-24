@@ -1,4 +1,4 @@
-import asyncio
+from http import HTTPStatus
 from typing import Any
 
 import pytest
@@ -16,11 +16,11 @@ pytestmark = pytest.mark.asyncio
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
     ],
 )
@@ -93,11 +93,11 @@ async def test_search_without_cache(
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
     ],
 )
