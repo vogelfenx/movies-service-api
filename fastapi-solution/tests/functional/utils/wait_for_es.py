@@ -3,8 +3,8 @@ from os import getenv
 
 from aioretry import retry
 from elasticsearch import AsyncElasticsearch
-from utils.backoff_policy import retry_policy
-from utils.logger import get_logger
+from tests.functional.utils.backoff_policy import retry_policy
+from tests.functional.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
