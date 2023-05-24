@@ -1,5 +1,4 @@
 from typing import Any
-import json
 
 
 def paginate_list(
@@ -27,6 +26,5 @@ def get_es_bulk_query(
                 row,
             ]
         )
-    # query = '\n'.join(bulk_query) + '\n'
 
     return bulk_query
