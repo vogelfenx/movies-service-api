@@ -122,7 +122,7 @@ async def test_retrieve_genre(
         id=genre["id"],
     )
 
-    redis_client.flushall()
+    await redis_client.flushall()
     response_body, _, response_status = await make_get_request(
         request_path=api_endpoint_url,
         query_payload=None,
