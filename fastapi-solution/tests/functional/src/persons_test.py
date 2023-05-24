@@ -1,16 +1,19 @@
-from typing import Any
+import asyncio
 from http import HTTPStatus
+from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
-from tests.functional.settings import persons_settings, movies_settings
+from tests.functional.settings import movies_settings, persons_settings
+from tests.functional.testdata.person import some_person
 from tests.functional.utils.test_data_generation import (
     generate_films,
-    generate_persons,
     generate_films_by_person,
+    generate_persons,
 )
-from tests.functional.testdata.person import some_person
+
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize(
@@ -43,7 +46,6 @@ from tests.functional.testdata.person import some_person
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_find_person_without_cache(
     main_api_url,
     create_es_index,
@@ -108,7 +110,6 @@ async def test_find_person_without_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_find_person_cache(
     main_api_url,
     create_es_index,
@@ -196,7 +197,6 @@ async def test_find_person_cache(
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_find_person_films_without_cache(
     main_api_url,
     create_es_index,
@@ -258,7 +258,6 @@ async def test_find_person_films_without_cache(
     "query_data, expected_response",
     [({"title": "Matrix"}, {"status": HTTPStatus.OK, "films_count": 30})],
 )
-@pytest.mark.asyncio
 async def test_find_person_films_cache(
     main_api_url,
     create_es_index,
@@ -336,7 +335,6 @@ async def test_find_person_films_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_search_person_without_cache(
     main_api_url,
     create_es_index,
@@ -417,7 +415,6 @@ async def test_search_person_without_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_search_person_cache(
     main_api_url,
     create_es_index,

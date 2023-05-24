@@ -1,11 +1,14 @@
-from typing import Any
+import asyncio
 import uuid
+from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
 from tests.functional.settings import genres_settings
 from tests.functional.utils.test_data_generation import generate_genres
+
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize(
@@ -16,7 +19,6 @@ from tests.functional.utils.test_data_generation import generate_genres
         (False, False, 200),
     ],
 )
-@pytest.mark.asyncio
 async def test_retrieve_genres(
     main_api_url,
     make_get_request,
@@ -80,7 +82,6 @@ async def test_retrieve_genres(
         (None, {"status": 200}, True),
     ],
 )
-@pytest.mark.asyncio
 async def test_retrieve_genre(
     main_api_url,
     make_get_request,

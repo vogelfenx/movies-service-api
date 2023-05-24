@@ -1,12 +1,15 @@
-from typing import Any
+import asyncio
 from http import HTTPStatus
+from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
 from tests.functional.settings import movies_settings
-from tests.functional.utils.test_data_generation import generate_films
 from tests.functional.testdata.film import some_film
+from tests.functional.utils.test_data_generation import generate_films
+
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize(
@@ -39,7 +42,6 @@ from tests.functional.testdata.film import some_film
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_find_specified_films_without_cache(
     main_api_url,
     create_es_index,
@@ -97,7 +99,6 @@ async def test_find_specified_films_without_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_find_specified_films_cache(
     main_api_url,
     create_es_index,
@@ -162,7 +163,6 @@ async def test_find_specified_films_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_find_films_without_cache(
     main_api_url,
     create_es_index,
@@ -231,7 +231,6 @@ async def test_find_films_without_cache(
         )
     ],
 )
-@pytest.mark.asyncio
 async def test_find_films_cache(
     main_api_url,
     create_es_index,

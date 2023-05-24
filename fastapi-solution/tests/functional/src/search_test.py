@@ -1,11 +1,14 @@
+import asyncio
 from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
 from tests.functional.settings import movies_settings
 from tests.functional.utils.helpers import paginate_list
 from tests.functional.utils.test_data_generation import generate_films
+
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize(
@@ -21,7 +24,6 @@ from tests.functional.utils.test_data_generation import generate_films
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_search_without_cache(
     main_api_url,
     make_get_request,
@@ -99,7 +101,6 @@ async def test_search_without_cache(
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_search_cache(
     main_api_url,
     make_get_request,
