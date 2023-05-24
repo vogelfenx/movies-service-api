@@ -78,6 +78,8 @@ async def test_retrieve_genres(
     [
         ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, False),
         ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, True),
+        ({"id": "some_string"}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
+        ({"id": 5}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
         (None, {"status": HTTPStatus.OK}, False),
         (None, {"status": HTTPStatus.OK}, True),
     ],
