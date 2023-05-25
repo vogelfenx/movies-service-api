@@ -1,5 +1,5 @@
-import asyncio
 import uuid
+from http import HTTPStatus
 from typing import Any
 
 import pytest
@@ -14,9 +14,9 @@ pytestmark = pytest.mark.asyncio
 @pytest.mark.parametrize(
     "use_cache, test_empty_response, expected_status_code",
     [
-        (False, True, 404),
-        (True, False, 200),
-        (False, False, 200),
+        (False, True, HTTPStatus.NOT_FOUND),
+        (True, False, HTTPStatus.OK),
+        (False, False, HTTPStatus.OK),
     ],
 )
 async def test_retrieve_genres(
@@ -67,7 +67,7 @@ async def test_retrieve_genres(
         )
 
     assert response_status == expected_status_code
-    if response_status == 200:
+    if response_status == HTTPStatus.OK:
         resp_genres_ids = {genre["uuid"] for genre in response_body}
         assert len(genres) == len(response_body)
         assert expected_genres_ids == resp_genres_ids
@@ -76,10 +76,12 @@ async def test_retrieve_genres(
 @pytest.mark.parametrize(
     "genre, expected_response, use_cache",
     [
-        ({"id": uuid.uuid4()}, {"status": 404}, False),
-        ({"id": uuid.uuid4()}, {"status": 404}, True),
-        (None, {"status": 200}, False),
-        (None, {"status": 200}, True),
+        ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, False),
+        ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, True),
+        ({"id": "some_string"}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
+        ({"id": 5}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
+        (None, {"status": HTTPStatus.OK}, False),
+        (None, {"status": HTTPStatus.OK}, True),
     ],
 )
 async def test_retrieve_genre(
@@ -120,7 +122,7 @@ async def test_retrieve_genre(
         id=genre["id"],
     )
 
-    redis_client.flushall()
+    await redis_client.flushall()
     response_body, _, response_status = await make_get_request(
         request_path=api_endpoint_url,
         query_payload=None,

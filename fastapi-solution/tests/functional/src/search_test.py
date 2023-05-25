@@ -1,4 +1,4 @@
-import asyncio
+from http import HTTPStatus
 from typing import Any
 
 import pytest
@@ -16,11 +16,23 @@ pytestmark = pytest.mark.asyncio
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
+        ),
+        (
+            {"page_size": 21, "page_number": 1},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
+        ),
+        (
+            {"query": "The World Star", "page_size": 0, "page_number": 1},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
+        ),
+        (
+            {"query": "The World Star", "page_size": 4, "page_number": 0},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
         ),
     ],
 )
@@ -41,7 +53,7 @@ async def test_search_without_cache(
 
     generated_films = generate_films(
         num_films=30,
-        film_title=query_data["query"],
+        film_title=query_data.get("query", 'some_film_title'),
     )
 
     expected_pagination_result = set(
@@ -78,14 +90,16 @@ async def test_search_without_cache(
     )
     await redis_client.flushall(True)
 
-    response_pagination_result = set(
-        [row["uuid"] for row in response_body["films"]]
-    )
-
     assert response_status == expected_response["status"]
-    assert response_body["films_count"] == expected_response["length"]
-    assert len(response_body["films"]) == len(expected_pagination_result)
-    assert response_pagination_result == expected_pagination_result
+
+    if response_status == HTTPStatus.OK:
+        response_pagination_result = {
+            row["uuid"] for row in response_body["films"]
+        }
+
+        assert response_body["films_count"] == expected_response["length"]
+        assert len(response_body["films"]) == len(expected_pagination_result)
+        assert response_pagination_result == expected_pagination_result
 
 
 @pytest.mark.parametrize(
@@ -93,11 +107,11 @@ async def test_search_without_cache(
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
     ],
 )
