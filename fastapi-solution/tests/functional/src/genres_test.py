@@ -1,28 +1,30 @@
-from typing import Any
 import uuid
+from http import HTTPStatus
+from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
 from tests.functional.settings import genres_settings
 from tests.functional.utils.test_data_generation import generate_genres
 
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
+
 
 @pytest.mark.parametrize(
-    'use_cache, test_empty_response, expected_status_code',
+    "use_cache, test_empty_response, expected_status_code",
     [
-        (False, True, 404),
-        (True, False, 200),
-        (False, False, 200),
+        (False, True, HTTPStatus.NOT_FOUND),
+        (True, False, HTTPStatus.OK),
+        (False, False, HTTPStatus.OK),
     ],
 )
-@pytest.mark.asyncio
 async def test_retrieve_genres(
     main_api_url,
     make_get_request,
     create_es_index,
     es_write_data,
-    es_clear_index,
+    es_clean_index,
     redis_client: Redis,
     use_cache: bool,
     test_empty_response: bool,
@@ -42,7 +44,7 @@ async def test_retrieve_genres(
 
     if not test_empty_response:
         genres = generate_genres()
-        expected_genres_ids = {genre['id'] for genre in genres}
+        expected_genres_ids = {genre["id"] for genre in genres}
         await es_write_data(
             genres,
             genres_settings.es_index,
@@ -58,35 +60,36 @@ async def test_retrieve_genres(
     )
 
     if use_cache:
-        await es_clear_index(index=genres_settings.es_index)
+        await es_clean_index(index=genres_settings.es_index)
         response_body, _, response_status = await make_get_request(
             request_path=api_endpoint_url,
             query_payload=None,
         )
 
     assert response_status == expected_status_code
-    if response_status == 200:
-        resp_genres_ids = {genre['uuid'] for genre in response_body}
+    if response_status == HTTPStatus.OK:
+        resp_genres_ids = {genre["uuid"] for genre in response_body}
         assert len(genres) == len(response_body)
         assert expected_genres_ids == resp_genres_ids
 
 
 @pytest.mark.parametrize(
-    'genre, expected_response, use_cache',
+    "genre, expected_response, use_cache",
     [
-        ({'id': uuid.uuid4()}, {'status': 404}, False),
-        ({'id': uuid.uuid4()}, {'status': 404}, True),
-        (None, {'status': 200}, False),
-        (None, {'status': 200}, True),
+        ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, False),
+        ({"id": uuid.uuid4()}, {"status": HTTPStatus.NOT_FOUND}, True),
+        ({"id": "some_string"}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
+        ({"id": 5}, {"status": HTTPStatus.UNPROCESSABLE_ENTITY}, False),
+        (None, {"status": HTTPStatus.OK}, False),
+        (None, {"status": HTTPStatus.OK}, True),
     ],
 )
-@pytest.mark.asyncio
 async def test_retrieve_genre(
     main_api_url,
     make_get_request,
     create_es_index,
     es_write_data,
-    es_clear_index,
+    es_clean_index,
     redis_client: Redis,
     genre: dict[str, Any],
     expected_response: dict[str, Any],
@@ -116,17 +119,17 @@ async def test_retrieve_genre(
     api_endpoint_url = "{base_url}/{endpoint}/{id}".format(
         base_url=main_api_url,
         endpoint=genres_settings.api_endpoint_url,
-        id=genre['id'],
+        id=genre["id"],
     )
 
-    redis_client.flushall()
+    await redis_client.flushall()
     response_body, _, response_status = await make_get_request(
         request_path=api_endpoint_url,
         query_payload=None,
     )
 
     if use_cache:
-        await es_clear_index(index=genres_settings.es_index)
+        await es_clean_index(index=genres_settings.es_index)
         response_body, _, response_status = await make_get_request(
             request_path=api_endpoint_url,
             query_payload=None,

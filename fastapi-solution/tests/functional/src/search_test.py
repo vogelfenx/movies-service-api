@@ -1,11 +1,14 @@
+from http import HTTPStatus
 from typing import Any
 
 import pytest
 from redis.asyncio import Redis
-
 from tests.functional.settings import movies_settings
 from tests.functional.utils.helpers import paginate_list
 from tests.functional.utils.test_data_generation import generate_films
+
+# All test coroutines will be treated as marked.
+pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.parametrize(
@@ -13,15 +16,26 @@ from tests.functional.utils.test_data_generation import generate_films
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
+        ),
+        (
+            {"page_size": 21, "page_number": 1},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
+        ),
+        (
+            {"query": "The World Star", "page_size": 0, "page_number": 1},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
+        ),
+        (
+            {"query": "The World Star", "page_size": 4, "page_number": 0},
+            {"status": HTTPStatus.UNPROCESSABLE_ENTITY, "length": 30},
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_search_without_cache(
     main_api_url,
     make_get_request,
@@ -39,7 +53,7 @@ async def test_search_without_cache(
 
     generated_films = generate_films(
         num_films=30,
-        film_title=query_data["query"],
+        film_title=query_data.get("query", 'some_film_title'),
     )
 
     expected_pagination_result = set(
@@ -76,14 +90,16 @@ async def test_search_without_cache(
     )
     await redis_client.flushall(True)
 
-    response_pagination_result = set(
-        [row["uuid"] for row in response_body["films"]]
-    )
-
     assert response_status == expected_response["status"]
-    assert response_body["films_count"] == expected_response["length"]
-    assert len(response_body["films"]) == len(expected_pagination_result)
-    assert response_pagination_result == expected_pagination_result
+
+    if response_status == HTTPStatus.OK:
+        response_pagination_result = {
+            row["uuid"] for row in response_body["films"]
+        }
+
+        assert response_body["films_count"] == expected_response["length"]
+        assert len(response_body["films"]) == len(expected_pagination_result)
+        assert response_pagination_result == expected_pagination_result
 
 
 @pytest.mark.parametrize(
@@ -91,21 +107,20 @@ async def test_search_without_cache(
     [
         (
             {"query": "Space X", "page_size": 8, "page_number": 2},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
         (
             {"query": "The World Star", "page_size": 21, "page_number": 1},
-            {"status": 200, "length": 30},
+            {"status": HTTPStatus.OK, "length": 30},
         ),
     ],
 )
-@pytest.mark.asyncio
 async def test_search_cache(
     main_api_url,
     make_get_request,
     create_es_index,
     es_write_data,
-    es_clear_index,
+    es_clean_index,
     redis_client: Redis,
     query_data: dict[str, Any],
     expected_response: dict[str, Any],
@@ -147,7 +162,7 @@ async def test_search_cache(
         query_payload=query_data,
     )
 
-    await es_clear_index(index=movies_settings.es_index)
+    await es_clean_index(index=movies_settings.es_index)
 
     response_body, _, response_status = await make_get_request(
         request_path=api_endpoint_url,

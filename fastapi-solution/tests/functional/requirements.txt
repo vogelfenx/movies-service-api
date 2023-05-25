@@ -9,3 +9,4 @@ docker-compose==1.29.2
 pytest-docker-compose==3.2.1 
 redis==4.5.0
 orjson==3.8.12 
+aioretry==5.0.2
