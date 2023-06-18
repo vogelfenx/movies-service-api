@@ -2,18 +2,25 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from core.messages import FILM_NOT_FOUND
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
+
+from core.messages import FILM_NOT_FOUND
 from models import Film
-from .service import FilmService, get_film_service
+from security.auth import Auth
+
 from .models import ResponseFilms, pagination_parameters
+from .service import FilmService, get_film_service
 
 router = APIRouter()
 
 PaginationParameters = Annotated[dict, Depends(pagination_parameters)]
 
 
-@router.get("/search", response_model=ResponseFilms)
+@router.get(
+    "/search",
+    response_model=ResponseFilms,
+    dependencies=[Depends(Auth)],
+)
 async def films_search(
     pagination_params: PaginationParameters,
     query: Annotated[str, Query(description="Search by query")],
@@ -23,6 +30,8 @@ async def films_search(
     ### Retrieve a paginated list of films that match the search query.
 
     Search across predefined fields.
+
+    Only authenticated users can access this endpoint.
 
     ### Query arguments:
     - **page_size**: The size of the films retrieved per page.
@@ -145,6 +154,7 @@ async def films_list(
     "/{film_id}/",
     response_model=Film,
     response_model_exclude_unset=True,
+    dependencies=[Depends(Auth)],
 )
 async def film_details(
     film_id: Annotated[UUID, Path(description="ID of the film to retrieve")],
@@ -152,6 +162,8 @@ async def film_details(
 ) -> Film:
     """
     ### Retrieve the details of a specific film.
+
+    Only authenticated users can access this endpoint.
 
     ### Path arguments:
     - **film_id**: The ID of the film to retrieve

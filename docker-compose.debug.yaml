@@ -16,6 +16,9 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 5
+    networks:
+        - auth_network
+        - default
 
     depends_on:
       - redis
@@ -23,7 +26,7 @@ services:
       [
         "sh",
         "-c",
-        "pip install debugpy && python -m debugpy --wait-for-client --listen 0.0.0.0:5678 -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
+        "pip install debugpy && python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000",
       ]
 
   redis:
@@ -42,3 +45,6 @@ networks:
   default:
     external:
       name: app_movies_network
+  auth_network:
+    name: auth_network
+    external: true  

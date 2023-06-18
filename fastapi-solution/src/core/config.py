@@ -58,6 +58,16 @@ class RedisSettings(CommonSettings):
     REDIS_EXPIRE: int = 60 * 5  # 5 min
 
 
+class SecuritySettings(CommonSettings):
+    """Security settings"""
+
+    secret_key: str
+    algorithm: str
+    auth_service_token_url: str
+    auth_service_refresh_token_url: str
+
+
 fast_api_conf = ApiSettings()  # type: ignore
 es_conf = ESSettings()  # type: ignore
 redis_conf = RedisSettings()  # type: ignore
+security_settings = SecuritySettings()  # type: ignore

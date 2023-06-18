@@ -1,9 +1,11 @@
 from http import HTTPStatus
 from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
+
 from core.config import es_conf, fast_api_conf
 from core.messages import FILM_NOT_FOUND, PERSON_NOT_FOUND
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from security.auth import Auth
 
 from .models import FilmResponse, PersonResponse
 from .service import PersonService, get_person_service
@@ -11,7 +13,11 @@ from .service import PersonService, get_person_service
 router = APIRouter()
 
 
-@router.get("/search", response_model=list[PersonResponse])
+@router.get(
+    "/search",
+    response_model=list[PersonResponse],
+    dependencies=[Depends(Auth)],
+)
 async def person_search(
     query: Annotated[
         str,
@@ -32,6 +38,8 @@ async def person_search(
     person_service: PersonService = Depends(get_person_service),
 ) -> list[PersonResponse]:
     """Search a person's films by query (part of name).
+
+    Only authenticated users can access this endpoint.
 
     Raises:
         HTTPException: If requested person not found.
@@ -76,8 +84,11 @@ async def person_search(
     return person_resp
 
 
-# Внедряем PersonService с помощью Depends(get_person_service)
-@router.get("/{person_id}/film", response_model=list[FilmResponse])
+@router.get(
+    "/{person_id}/film",
+    response_model=list[FilmResponse],
+    dependencies=[Depends(Auth)],
+)
 async def person_films(
     person_id: str = Path(
         description="Persons's UUID",
@@ -87,6 +98,8 @@ async def person_films(
     person_service: PersonService = Depends(get_person_service),
 ) -> list[FilmResponse]:
     """Return a person's films (only films list).
+
+    Only authenticated users can access this endpoint.
 
     Raises:
         HTTPException: If requested person or films not found.
@@ -108,7 +121,11 @@ async def person_films(
     return [FilmResponse.parse_obj(x) for x in films]
 
 
-@router.get("/{person_id}/", response_model=PersonResponse)
+@router.get(
+    "/{person_id}/",
+    response_model=PersonResponse,
+    dependencies=[Depends(Auth)],
+)
 async def person(
     person_id: str = Path(
         description="Persons's UUID",
@@ -118,6 +135,8 @@ async def person(
     person_service: PersonService = Depends(get_person_service),
 ) -> PersonResponse:
     """Return a person's films (only uuid) and roles (as a list).
+
+    Only authenticated users can access this endpoint.
 
     Raises:
         HTTPException: If requested person not found.
