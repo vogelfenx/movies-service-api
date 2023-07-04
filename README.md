@@ -10,7 +10,7 @@
 
 ## About
 
-The project follows a microservice architecture. This particular service is responsible for implementing API endpoints to access data from the data warehouse. It utilizes Elasticsearch as the data source and Redis as a caching.
+The project follows a microservice architecture. This particular service *(Movies Service)* is responsible for implementing API endpoints to access data from the data warehouse. It utilizes Elasticsearch as the data source and Redis as a caching.
 
 The ETL **data warehouse service** is a separate service. It is responsible for continuously extracting, transforming and loading data from `PostgreSQL` into the `Elasticsearch` DB.
 
@@ -18,7 +18,7 @@ The ETL **data warehouse service** is a separate service. It is responsible for 
 
 **Services interaction scheme:**
 
-![services-integration_schema.svg](resources/services-integration.png)
+![services-integration_schema.svg](resources/services-integration.svg)
 
 ## Requirements
 
