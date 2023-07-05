@@ -24,7 +24,7 @@ The ETL **data warehouse service** is a separate service. It is responsible for 
 
 1. [**ETL & data warehouse service**](https://github.com/vogelfenx/etl_postgres_to_elasticsearch)
 
-1. [**Auth Service**](https://github.com/vogelfenx/Auth_API)
+1. [**Auth Service**](https://github.com/vogelfenx/auth-service-api)
 
 ## Installation & Launching
 
